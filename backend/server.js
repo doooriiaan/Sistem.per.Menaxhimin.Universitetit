@@ -9,13 +9,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// test route
 app.get("/", (req, res) => {
   res.send("Server is working");
 });
 
-app.use("/", studentRoutes);
-app.use("/", lendetRoutes);
+// routes
+app.use("/api/studentet", studentRoutes);
+app.use("/api/lendet", lendetRoutes);
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+// PORT
+const PORT = process.env.PORT || 5001;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
