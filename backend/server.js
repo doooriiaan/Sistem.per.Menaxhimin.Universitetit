@@ -15,8 +15,8 @@ app.get("/", (req, res) => {
 });
 
 // routes
-app.use("/api/studentet", studentRoutes);
-app.use("/api/lendet", lendetRoutes);
+app.use("/", studentRoutes);
+app.use("/", lendetRoutes);
 
 // PORT
 const PORT = process.env.PORT || 5001;
