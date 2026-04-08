@@ -1,5 +1,6 @@
-const db = require("../db"); // ose lidhja jote me mysql
+const db = require("../db");
 
+// GET
 const getStudentet = (req, res) => {
   db.query("SELECT * FROM studentet", (err, result) => {
     if (err) {
@@ -10,13 +11,15 @@ const getStudentet = (req, res) => {
   });
 };
 
-module.exports = { getStudentet };
-
-
-
 // POST
 const addStudent = (req, res) => {
   const { emri, mbiemri, email } = req.body;
+
+  if (!emri || !mbiemri || !email) {
+    return res.status(400).json({
+      message: "Te gjitha fushat jane te detyrueshme"
+    });
+  }
 
   const sql = "INSERT INTO studentet (emri, mbiemri, email) VALUES (?, ?, ?)";
 
@@ -26,7 +29,7 @@ const addStudent = (req, res) => {
       return res.status(500).json(err);
     }
 
-    res.json({
+    res.status(201).json({
       message: "Studenti u shtua me sukses",
       id: result.insertId
     });

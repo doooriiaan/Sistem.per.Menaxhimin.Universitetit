@@ -3,8 +3,9 @@ const cors = require("cors");
 
 const studentRoutes = require("./routes/studentRoutes");
 const lendetRoutes = require("./routes/lendetRoutes");
+const noteRoutes = require("./routes/noteRoutes");
 
-const app = express();
+const app = express(); // DUHET me kon para app.use
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +18,7 @@ app.get("/", (req, res) => {
 // routes
 app.use("/", studentRoutes);
 app.use("/", lendetRoutes);
+app.use("/", noteRoutes);
 
 // PORT
 const PORT = process.env.PORT || 5001;

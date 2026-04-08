@@ -2,6 +2,9 @@ DROP DATABASE IF EXISTS universitydb;
 CREATE DATABASE universitydb;
 USE universitydb;
 
+-- ======================
+-- FAKULTETET
+-- ======================
 CREATE TABLE fakultetet (
     fakultet_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -11,18 +14,22 @@ CREATE TABLE fakultetet (
     email VARCHAR(100)
 );
 
+-- ======================
+-- DEPARTAMENTET
+-- ======================
 CREATE TABLE departamentet (
     departament_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
     fakulteti_id INT NULL,
     shefi_id INT NULL,
     pershkrimi TEXT,
-    CONSTRAINT fk_departamentet_fakultetet
-        FOREIGN KEY (fakulteti_id) REFERENCES fakultetet(fakultet_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (fakulteti_id) REFERENCES fakultetet(fakultet_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- ======================
+-- DREJTIMET
+-- ======================
 CREATE TABLE drejtimet (
     drejtim_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -30,12 +37,13 @@ CREATE TABLE drejtimet (
     niveli VARCHAR(50),
     kohezgjatja_vite INT,
     pershkrimi TEXT,
-    CONSTRAINT fk_drejtimet_fakultetet
-        FOREIGN KEY (fakulteti_id) REFERENCES fakultetet(fakultet_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (fakulteti_id) REFERENCES fakultetet(fakultet_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- ======================
+-- STUDENTET
+-- ======================
 CREATE TABLE studentet (
     student_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -49,12 +57,13 @@ CREATE TABLE studentet (
     drejtimi_id INT NULL,
     viti_studimit INT,
     statusi VARCHAR(50),
-    CONSTRAINT fk_studentet_drejtimet
-        FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- ======================
+-- PROFESORET
+-- ======================
 CREATE TABLE profesoret (
     profesor_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -65,12 +74,13 @@ CREATE TABLE profesoret (
     telefoni VARCHAR(50),
     specializimi VARCHAR(100),
     data_punesimit DATE,
-    CONSTRAINT fk_profesoret_departamentet
-        FOREIGN KEY (departamenti_id) REFERENCES departamentet(departament_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (departamenti_id) REFERENCES departamentet(departament_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- ======================
+-- LENDET
+-- ======================
 CREATE TABLE lendet (
     lende_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -80,12 +90,13 @@ CREATE TABLE lendet (
     drejtimi_id INT NULL,
     lloji VARCHAR(50),
     pershkrimi TEXT,
-    CONSTRAINT fk_lendet_drejtimet
-        FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+-- ======================
+-- REGJISTRIMET
+-- ======================
 CREATE TABLE regjistrimet (
     regjistrim_id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NULL,
@@ -93,33 +104,62 @@ CREATE TABLE regjistrimet (
     semestri INT,
     viti_akademik VARCHAR(20),
     statusi VARCHAR(50),
-    CONSTRAINT fk_regjistrimet_studentet
-        FOREIGN KEY (student_id) REFERENCES studentet(student_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE,
-    CONSTRAINT fk_regjistrimet_lendet
-        FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 );
+
+-- ======================
+-- PROVIMET (E RE)
+-- ======================
+CREATE TABLE provimet (
+    provimi_id INT AUTO_INCREMENT PRIMARY KEY,
+    lende_id INT NULL,
+    profesor_id INT NULL,
+    data_provimit DATE,
+    ora TIME,
+    salla VARCHAR(50),
+    afati VARCHAR(50),
+    FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (profesor_id) REFERENCES profesoret(profesor_id)
+        ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+USE universitydb;
+
+DROP TABLE IF EXISTS notat;
+
+DROP TABLE IF EXISTS notat;
 
 CREATE TABLE notat (
-    note_id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NULL,
-    lende_id INT NULL,
-    nota DECIMAL(5,2),
-    data_vleresimit DATE,
-    shenimet TEXT,
-    CONSTRAINT fk_notat_studentet
-        FOREIGN KEY (student_id) REFERENCES studentet(student_id)
-        ON DELETE SET NULL
+    nota_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    provimi_id INT NOT NULL,
+    nota DECIMAL(4,2) NOT NULL,
+    data_vendosjes DATE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
         ON UPDATE CASCADE,
-    CONSTRAINT fk_notat_lendet
-        FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
-        ON DELETE SET NULL
+    FOREIGN KEY (provimi_id) REFERENCES provimet(provimi_id)
+        ON DELETE CASCADE
         ON UPDATE CASCADE
 );
+-- ======================
+-- TEST DATA (OPTIONAL)
+-- ======================
 
+INSERT INTO studentet (emri, mbiemri, email)
+VALUES ('Dorian', 'Test', 'dorian@test.com');
+
+INSERT INTO provimet (data_provimit, ora, salla, afati)
+VALUES ('2026-04-10', '10:00:00', 'A1', 'Prill');
+
+-- ======================
+-- CHECK
+-- ======================
 SHOW TABLES;
 SELECT * FROM studentet;
-SELECT * FROM lendet;
+SELECT * FROM provimet;
+SELECT * FROM notat;
