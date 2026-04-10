@@ -1,18 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const profesoretController = require("../controllers/profesoretController");
 
-const {
-  getProfesoret,
-  getProfesoriById,
-  addProfesor,
-  updateProfesor,
-  deleteProfesor
-} = require("../controllers/profesoretController");
-
-router.get("/profesoret", getProfesoret);
-router.get("/profesoret/:id", getProfesoriById);
-router.post("/profesoret", addProfesor);
-router.put("/profesoret/:id", updateProfesor);
-router.delete("/profesoret/:id", deleteProfesor);
+router.get("/", profesoretController.getallprofesoret);
+router.get("/:id", profesoretController.getprofesoribyid);
+router.post("/", profesoretController.createprofesor);
+router.put("/:id", profesoretController.updateprofesor);
+router.delete("/:id", profesoretController.deleteprofesor);
 
 module.exports = router;

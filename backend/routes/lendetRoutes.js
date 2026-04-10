@@ -1,17 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const {
-  getLendet,
-  getLendaById,
-  addLenda,
-  updateLenda,
-  deleteLenda
-} = require("../controllers/lendetController");
+const lendetController = require("../controllers/lendetController");
 
-router.get("/lendet", getLendet);
-router.get("/lendet/:id", getLendaById);
-router.post("/lendet", addLenda);
-router.put("/lendet/:id", updateLenda);
-router.delete("/lendet/:id", deleteLenda);
+router.get("/", lendetController.getalllendet);
+router.get("/:id", lendetController.getlendabyid);
+router.post("/", lendetController.createlenda);
+router.put("/:id", lendetController.updatelenda);
+router.delete("/:id", lendetController.deletelenda);
 
 module.exports = router;

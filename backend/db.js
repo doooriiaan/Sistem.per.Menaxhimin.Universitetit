@@ -13,7 +13,6 @@ db.connect((err) => {
     console.log("Database connection error:", err);
   } else {
     console.log("Connected to MySQL");
-    console.log("Database name:", process.env.DB_NAME);
   }
 });
 

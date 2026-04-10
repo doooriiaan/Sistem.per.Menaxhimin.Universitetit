@@ -1,17 +1,35 @@
 const db = require("../db");
 
-// GET
-const getStudentet = (req, res) => {
-  db.query("SELECT * FROM studentet", (err, result) => {
+const getallstudents = (req, res) => {
+  const sql = "SELECT * FROM studentet";
+
+  db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json(err);
+      return res.status(500).json({ error: err.message });
     }
-    res.json(result);
+
+    res.json(results);
   });
 };
 
-// POST (pa null)
-const addStudent = (req, res) => {
+const getstudentbyid = (req, res) => {
+  const { id } = req.params;
+  const sql = "SELECT * FROM studentet WHERE student_id = ?";
+
+  db.query(sql, [id], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Studenti nuk u gjet" });
+    }
+
+    res.json(results[0]);
+  });
+};
+
+const createstudent = (req, res) => {
   const {
     emri,
     mbiemri,
@@ -26,24 +44,6 @@ const addStudent = (req, res) => {
     statusi
   } = req.body;
 
-  if (
-    !emri?.trim() ||
-    !mbiemri?.trim() ||
-    !numri_personal?.trim() ||
-    !data_lindjes ||
-    !gjinia?.trim() ||
-    !email?.trim() ||
-    !telefoni?.trim() ||
-    !adresa?.trim() ||
-    !drejtimi_id ||
-    !viti_studimit ||
-    !statusi?.trim()
-  ) {
-    return res.status(400).json({
-      message: "Te gjitha fushat jane te detyrueshme"
-    });
-  }
-
   const sql = `
     INSERT INTO studentet
     (emri, mbiemri, numri_personal, data_lindjes, gjinia, email, telefoni, adresa, drejtimi_id, viti_studimit, statusi)
@@ -53,29 +53,104 @@ const addStudent = (req, res) => {
   db.query(
     sql,
     [
-      emri.trim(),
-      mbiemri.trim(),
-      numri_personal.trim(),
+      emri,
+      mbiemri,
+      numri_personal,
       data_lindjes,
-      gjinia.trim(),
-      email.trim(),
-      telefoni.trim(),
-      adresa.trim(),
+      gjinia,
+      email,
+      telefoni,
+      adresa,
       drejtimi_id,
       viti_studimit,
-      statusi.trim()
+      statusi
     ],
     (err, result) => {
       if (err) {
-        return res.status(500).json(err);
+        return res.status(500).json({ error: err.message });
       }
 
       res.status(201).json({
-        message: "Studenti u shtua me sukses",
+        message: "Studenti u shtua",
         id: result.insertId
       });
     }
   );
 };
 
-module.exports = { getStudentet, addStudent };
+const updatestudent = (req, res) => {
+  const { id } = req.params;
+  const {
+    emri,
+    mbiemri,
+    numri_personal,
+    data_lindjes,
+    gjinia,
+    email,
+    telefoni,
+    adresa,
+    drejtimi_id,
+    viti_studimit,
+    statusi
+  } = req.body;
+
+  const sql = `
+    UPDATE studentet
+    SET emri = ?, mbiemri = ?, numri_personal = ?, data_lindjes = ?, gjinia = ?, email = ?, telefoni = ?, adresa = ?, drejtimi_id = ?, viti_studimit = ?, statusi = ?
+    WHERE student_id = ?
+  `;
+
+  db.query(
+    sql,
+    [
+      emri,
+      mbiemri,
+      numri_personal,
+      data_lindjes,
+      gjinia,
+      email,
+      telefoni,
+      adresa,
+      drejtimi_id,
+      viti_studimit,
+      statusi,
+      id
+    ],
+    (err, result) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Studenti nuk u gjet" });
+      }
+
+      res.json({ message: "Studenti u perditesua" });
+    }
+  );
+};
+
+const deletestudent = (req, res) => {
+  const { id } = req.params;
+  const sql = "DELETE FROM studentet WHERE student_id = ?";
+
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Studenti nuk u gjet" });
+    }
+
+    res.json({ message: "Studenti u fshi" });
+  });
+};
+
+module.exports = {
+  getallstudents,
+  getstudentbyid,
+  createstudent,
+  updatestudent,
+  deletestudent
+};

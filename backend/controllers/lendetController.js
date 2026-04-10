@@ -1,136 +1,125 @@
 const db = require("../db");
 
-const getLendet = (req, res) => {
+const getalllendet = (req, res) => {
   const sql = "SELECT * FROM lendet";
 
-  db.query(sql, (err, result) => {
+  db.query(sql, (err, results) => {
     if (err) {
-      console.log("Gabim ne getLendet:", err);
-      return res.status(500).json({
-        message: "Gabim ne server",
-        error: err.message
-      });
+      return res.status(500).json({ error: err.message });
     }
 
-    res.status(200).json(result);
+    res.json(results);
   });
 };
 
-const getLendaById = (req, res) => {
+const getlendabyid = (req, res) => {
   const { id } = req.params;
   const sql = "SELECT * FROM lendet WHERE lende_id = ?";
 
-  db.query(sql, [id], (err, result) => {
+  db.query(sql, [id], (err, results) => {
     if (err) {
-      console.log("Gabim ne getLendaById:", err);
-      return res.status(500).json({
-        message: "Gabim ne server",
-        error: err.message
-      });
+      return res.status(500).json({ error: err.message });
     }
 
-    if (result.length === 0) {
-      return res.status(404).json({
-        message: "Lenda nuk u gjet"
-      });
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Lenda nuk u gjet" });
     }
 
-    res.status(200).json(result[0]);
+    res.json(results[0]);
   });
 };
 
-const addLenda = (req, res) => {
-  const { emri, kodi, kreditet, semestri, drejtimi_id, lloji, pershkrimi } = req.body;
+const createlenda = (req, res) => {
+  const {
+    emri,
+    kodi,
+    kreditet,
+    semestri,
+    drejtimi_id,
+    profesori_id,
+    lloji,
+    pershkrimi
+  } = req.body;
 
   const sql = `
-    INSERT INTO lendet (emri, kodi, kreditet, semestri, drejtimi_id, lloji, pershkrimi)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO lendet
+    (emri, kodi, kreditet, semestri, drejtimi_id, profesori_id, lloji, pershkrimi)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
     sql,
-    [emri, kodi, kreditet, semestri, drejtimi_id, lloji, pershkrimi],
+    [emri, kodi, kreditet, semestri, drejtimi_id, profesori_id, lloji, pershkrimi],
     (err, result) => {
       if (err) {
-        console.log("Gabim ne addLenda:", err);
-        return res.status(500).json({
-          message: "Gabim ne server",
-          error: err.message
-        });
+        return res.status(500).json({ error: err.message });
       }
 
       res.status(201).json({
-        message: "Lenda u shtua me sukses",
-        lendeId: result.insertId
+        message: "Lenda u shtua",
+        id: result.insertId
       });
     }
   );
 };
 
-const updateLenda = (req, res) => {
+const updatelenda = (req, res) => {
   const { id } = req.params;
-  const { emri, kodi, kreditet, semestri, drejtimi_id, lloji, pershkrimi } = req.body;
+  const {
+    emri,
+    kodi,
+    kreditet,
+    semestri,
+    drejtimi_id,
+    profesori_id,
+    lloji,
+    pershkrimi
+  } = req.body;
 
   const sql = `
     UPDATE lendet
-    SET emri = ?, kodi = ?, kreditet = ?, semestri = ?, drejtimi_id = ?, lloji = ?, pershkrimi = ?
+    SET emri = ?, kodi = ?, kreditet = ?, semestri = ?, drejtimi_id = ?, profesori_id = ?, lloji = ?, pershkrimi = ?
     WHERE lende_id = ?
   `;
 
   db.query(
     sql,
-    [emri, kodi, kreditet, semestri, drejtimi_id, lloji, pershkrimi, id],
+    [emri, kodi, kreditet, semestri, drejtimi_id, profesori_id, lloji, pershkrimi, id],
     (err, result) => {
       if (err) {
-        console.log("Gabim ne updateLenda:", err);
-        return res.status(500).json({
-          message: "Gabim ne server",
-          error: err.message
-        });
+        return res.status(500).json({ error: err.message });
       }
 
       if (result.affectedRows === 0) {
-        return res.status(404).json({
-          message: "Lenda nuk u gjet"
-        });
+        return res.status(404).json({ message: "Lenda nuk u gjet" });
       }
 
-      res.status(200).json({
-        message: "Lenda u perditesua me sukses"
-      });
+      res.json({ message: "Lenda u perditesua" });
     }
   );
 };
 
-const deleteLenda = (req, res) => {
+const deletelenda = (req, res) => {
   const { id } = req.params;
   const sql = "DELETE FROM lendet WHERE lende_id = ?";
 
   db.query(sql, [id], (err, result) => {
     if (err) {
-      console.log("Gabim ne deleteLenda:", err);
-      return res.status(500).json({
-        message: "Gabim ne server",
-        error: err.message
-      });
+      return res.status(500).json({ error: err.message });
     }
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Lenda nuk u gjet"
-      });
+      return res.status(404).json({ message: "Lenda nuk u gjet" });
     }
 
-    res.status(200).json({
-      message: "Lenda u fshi me sukses"
-    });
+    res.json({ message: "Lenda u fshi" });
   });
 };
 
 module.exports = {
-  getLendet,
-  getLendaById,
-  addLenda,
-  updateLenda,
-  deleteLenda
+  getalllendet,
+  getlendabyid,
+  createlenda,
+  updatelenda,
+  deletelenda
 };

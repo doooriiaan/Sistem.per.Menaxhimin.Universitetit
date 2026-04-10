@@ -1,17 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const {
-  getProvimet,
-  getProvimiById,
-  addProvimi,
-  updateProvimi,
-  deleteProvimi
-} = require("../controllers/provimetController");
+const provimetController = require("../controllers/provimetController");
 
-router.get("/provimet", getProvimet);
-router.get("/provimet/:id", getProvimiById);
-router.post("/provimet", addProvimi);
-router.put("/provimet/:id", updateProvimi);
-router.delete("/provimet/:id", deleteProvimi);
+router.get("/", provimetController.getallprovimet);
+router.get("/:id", provimetController.getprovimibyid);
+router.post("/", provimetController.createprovimi);
+router.put("/:id", provimetController.updateprovimi);
+router.delete("/:id", provimetController.deleteprovimi);
 
 module.exports = router;

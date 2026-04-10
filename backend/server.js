@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 
+require("dotenv").config();
+
 const studentRoutes = require("./routes/studentRoutes");
 const lendetRoutes = require("./routes/lendetRoutes");
 const profesoretRoutes = require("./routes/profesoretRoutes");
@@ -13,14 +15,14 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Server is working");
+  res.send("Server working");
 });
 
-app.use("/", studentRoutes);
-app.use("/", lendetRoutes);
-app.use("/", profesoretRoutes);
-app.use("/", noteRoutes);
-app.use("/", provimetRoutes);
+app.use("/api/studentet", studentRoutes);
+app.use("/api/lendet", lendetRoutes);
+app.use("/api/profesoret", profesoretRoutes);
+app.use("/api/notat", noteRoutes);
+app.use("/api/provimet", provimetRoutes);
 
 const PORT = process.env.PORT || 5001;
 
