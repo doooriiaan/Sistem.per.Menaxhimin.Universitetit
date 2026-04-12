@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const ctrl = require("../controllers/oraretController");
+const {
+  getAllOraret,
+  getOrariById,
+  createOrari,
+  updateOrari,
+  deleteOrari
+} = require("../controllers/oraretController");
 
-router.get("/", ctrl.getAll);
-router.post("/", ctrl.create);
+router.get("/", getAllOraret);
+router.get("/:id", getOrariById);
+router.post("/", createOrari);
+router.put("/:id", updateOrari);
+router.delete("/:id", deleteOrari);
 
 module.exports = router;

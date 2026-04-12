@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const ctrl = require("../controllers/drejtimetController");
+const {
+  getAllDrejtimet,
+  getDrejtimiById,
+  createDrejtimi,
+  updateDrejtimi,
+  deleteDrejtimi
+} = require("../controllers/drejtimetController");
 
-router.get("/", ctrl.getAll);
-router.post("/", ctrl.create);
+router.get("/", getAllDrejtimet);
+router.get("/:id", getDrejtimiById);
+router.post("/", createDrejtimi);
+router.put("/:id", updateDrejtimi);
+router.delete("/:id", deleteDrejtimi);
 
 module.exports = router;

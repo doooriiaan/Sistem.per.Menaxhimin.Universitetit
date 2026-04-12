@@ -1,8 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const ctrl = require("../controllers/fakultetetController");
+const {
+  getAllFakultetet,
+  getFakultetiById,
+  createFakulteti,
+  updateFakulteti,
+  deleteFakulteti
+} = require("../controllers/fakultetetController");
 
-router.get("/", ctrl.getAll);
-router.post("/", ctrl.create);
+router.get("/", getAllFakultetet);
+router.get("/:id", getFakultetiById);
+router.post("/", createFakulteti);
+router.put("/:id", updateFakulteti);
+router.delete("/:id", deleteFakulteti);
 
 module.exports = router;
