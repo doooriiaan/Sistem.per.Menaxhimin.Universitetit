@@ -119,6 +119,7 @@ CREATE TABLE notat (
     provimi_id INT NOT NULL,
     nota DECIMAL(4,2) NOT NULL,
     data_vendosjes DATE,
+    pershkrimi VARCHAR(255) NOT NULL,
     UNIQUE (student_id, provimi_id),
     FOREIGN KEY (student_id) REFERENCES studentet(student_id)
         ON DELETE CASCADE
@@ -127,6 +128,19 @@ CREATE TABLE notat (
         ON DELETE CASCADE
         ON UPDATE CASCADE,
     CHECK (nota >= 5.00 AND nota <= 10.00)
+);
+CREATE TABLE oraret (
+    orari_id INT AUTO_INCREMENT PRIMARY KEY,
+    lende_id INT,
+    profesori_id INT,
+    dita VARCHAR(20),
+    ora_fillimit TIME,
+    ora_mbarimit TIME,
+    salla VARCHAR(50),
+    FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (profesori_id) REFERENCES profesoret(profesor_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 ALTER TABLE fakultetet
@@ -140,6 +154,7 @@ ADD CONSTRAINT fk_departamentet_shefi
 FOREIGN KEY (shefi_id) REFERENCES profesoret(profesor_id)
     ON DELETE SET NULL
     ON UPDATE CASCADE;
+
 
 INSERT INTO fakultetet (emri, dekani_id, adresa, telefoni, email)
 VALUES ('Fakulteti i Shkencave Kompjuterike', NULL, 'Prishtine', '038123123', 'fshk@ubt.com');
@@ -173,16 +188,21 @@ VALUES (1, 1, 2, '2025/2026', 'I regjistruar');
 INSERT INTO provimet (lende_id, profesor_id, data_provimit, ora, salla, afati)
 VALUES (1, 1, '2026-04-10', '10:00:00', 'A1', 'Prill');
 
-INSERT INTO notat (student_id, provimi_id, nota, data_vendosjes)
-VALUES (1, 1, 9.50, '2026-04-15');
+INSERT INTO notat (student_id, provimi_id, nota, data_vendosjes, pershkrimi)
+VALUES (1, 1, 9.50, '2026-04-15', 'Provimi i kaluar me sukses');
 
 SHOW TABLES;
+USE universitydb;
+SELECT * FROM studentet;
+SELECT * FROM profesoret;
+SELECT * FROM notat;
 SELECT * FROM fakultetet;
 SELECT * FROM departamentet;
 SELECT * FROM drejtimet;
-SELECT * FROM studentet;
-SELECT * FROM profesoret;
 SELECT * FROM lendet;
 SELECT * FROM regjistrimet;
 SELECT * FROM provimet;
-SELECT * FROM notat;
+SELECT * FROM oraret;
+
+SELECT DATABASE();
+DESC lendet;
