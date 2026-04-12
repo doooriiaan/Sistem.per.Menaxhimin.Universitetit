@@ -32,22 +32,22 @@ const getprovimibyid = (req, res) => {
 const createprovimi = (req, res) => {
   const {
     lende_id,
-    profesori_id,
+    profesor_id,
     data_provimit,
-    ora_provimit,
+    ora,
     salla,
     afati
   } = req.body;
 
   const sql = `
     INSERT INTO provimet
-    (lende_id, profesori_id, data_provimit, ora_provimit, salla, afati)
+    (lende_id, profesor_id, data_provimit, ora, salla, afati)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
     sql,
-    [lende_id, profesori_id, data_provimit, ora_provimit, salla, afati],
+    [lende_id, profesor_id, data_provimit, ora, salla, afati],
     (err, result) => {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -65,22 +65,21 @@ const updateprovimi = (req, res) => {
   const { id } = req.params;
   const {
     lende_id,
-    profesori_id,
+    profesor_id,
     data_provimit,
-    ora_provimit,
+    ora,
     salla,
     afati
   } = req.body;
 
   const sql = `
     UPDATE provimet
-    SET lende_id = ?, profesori_id = ?, data_provimit = ?, ora_provimit = ?, salla = ?, afati = ?
+    SET lende_id = ?, profesor_id = ?, data_provimit = ?, ora = ?, salla = ?, afati = ?
     WHERE provimi_id = ?
   `;
 
-  db.query(
-    sql,
-    [lende_id, profesori_id, data_provimit, ora_provimit, salla, afati, id],
+  db.query(sql,
+    [lende_id, profesor_id, data_provimit, ora, salla, afati, id],
     (err, result) => {
       if (err) {
         return res.status(500).json({ error: err.message });
