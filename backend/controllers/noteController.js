@@ -110,10 +110,38 @@ const deletenota = (req, res) => {
   });
 };
 
+const getnotatdetails = (req, res) => {
+  const sql = `
+    SELECT 
+      n.nota_id,
+      s.emri,
+      s.mbiemri,
+      l.emri AS lenda,
+      pr.emri AS profesori,
+      n.nota,
+      n.data_vendosjes,
+      n.pershkrimi
+    FROM notat n
+    JOIN studentet s ON n.student_id = s.student_id
+    JOIN provimet p ON n.provimi_id = p.provimi_id
+    JOIN lendet l ON p.lende_id = l.lende_id
+    JOIN profesoret pr ON p.profesor_id = pr.profesor_id
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    res.json(results);
+  });
+};
+
 module.exports = {
   getallnotat,
   getnotabyid,
   createnota,
   updatenota,
-  deletenota
+  deletenota,
+  getnotatdetails
 };

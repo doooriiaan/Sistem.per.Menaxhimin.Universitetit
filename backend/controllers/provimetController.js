@@ -78,7 +78,8 @@ const updateprovimi = (req, res) => {
     WHERE provimi_id = ?
   `;
 
-  db.query(sql,
+  db.query(
+    sql,
     [lende_id, profesor_id, data_provimit, ora, salla, afati, id],
     (err, result) => {
       if (err) {
@@ -111,10 +112,35 @@ const deleteprovimi = (req, res) => {
   });
 };
 
+const getprovimetdetails = (req, res) => {
+  const sql = `
+    SELECT 
+      p.provimi_id,
+      l.emri AS lenda,
+      pr.emri AS profesori,
+      p.data_provimit,
+      p.ora,
+      p.salla,
+      p.afati
+    FROM provimet p
+    JOIN lendet l ON p.lende_id = l.lende_id
+    JOIN profesoret pr ON p.profesor_id = pr.profesor_id
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    res.json(results);
+  });
+};
+
 module.exports = {
   getallprovimet,
   getprovimibyid,
   createprovimi,
   updateprovimi,
-  deleteprovimi
+  deleteprovimi,
+  getprovimetdetails
 };

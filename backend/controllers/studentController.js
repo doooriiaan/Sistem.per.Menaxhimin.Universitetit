@@ -147,10 +147,35 @@ const deletestudent = (req, res) => {
   });
 };
 
+const getstudentdetails = (req, res) => {
+  const sql = `
+    SELECT 
+      s.student_id,
+      s.emri,
+      s.mbiemri,
+      d.emri AS drejtimi,
+      f.emri AS fakulteti,
+      s.viti_studimit,
+      s.statusi
+    FROM studentet s
+    JOIN drejtimet d ON s.drejtimi_id = d.drejtim_id
+    JOIN fakultetet f ON d.fakulteti_id = f.fakultet_id
+  `;
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    res.json(results);
+  });
+};
+
 module.exports = {
   getallstudents,
   getstudentbyid,
   createstudent,
   updatestudent,
-  deletestudent
+  deletestudent,
+  getstudentdetails
 };

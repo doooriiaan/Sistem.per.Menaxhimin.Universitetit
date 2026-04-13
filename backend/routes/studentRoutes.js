@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const studentController = require("../controllers/studentController");
 
+router.get("/details", studentController.getstudentdetails);
 router.get("/", studentController.getallstudents);
 router.get("/:id", studentController.getstudentbyid);
 router.post("/", studentController.createstudent);

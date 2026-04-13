@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const provimetController = require("../controllers/provimetController");
 
+router.get("/details", provimetController.getprovimetdetails);
 router.get("/", provimetController.getallprovimet);
 router.get("/:id", provimetController.getprovimibyid);
 router.post("/", provimetController.createprovimi);
