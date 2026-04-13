@@ -9,7 +9,7 @@ function StudentsPage() {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const res = await API.get("/students");
+        const res = await API.get("/studentet");
         setStudents(res.data);
       } catch (err) {
         console.error(err);

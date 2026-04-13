@@ -21,14 +21,14 @@ function Navbar() {
           <Link to="/" className={linkClass("/")}>
             Dashboard
           </Link>
-          <Link to="/students" className={linkClass("/students")}>
-            students
+          <Link to="/studentet" className={linkClass("/studentet")}>
+            Studentet
           </Link>
           <Link to="/profesoret" className={linkClass("/profesoret")}>
-            profesoret
+            Profesoret
           </Link>
           <Link to="/lendet" className={linkClass("/lendet")}>
-            lendet
+            Lendet
           </Link>
         </div>
       </div>
