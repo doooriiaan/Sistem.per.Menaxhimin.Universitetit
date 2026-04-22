@@ -11,32 +11,52 @@ function Navbar() {
     }`;
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col px-4 py-5 ">
-      <div className="px-3 pb-6 border-b border-slate-800   ">
-        <h1 className="text-2xl font-bold tracking-tight text-white ">
-          University Management System
-        </h1>
-      </div>
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-slate-900 px-4 py-6">
+      <h1 className="text-white text-xl font-bold mb-8">
+        University Management System
+      </h1>
 
-      <nav className="mt-6 flex flex-col gap-2">
+      <nav className="flex flex-col gap-2">
         <Link to="/" className={linkClass("/")}>
-          <span className="text-lg">◻</span>
-          <span>Dashboard</span>
+          Dashboard
         </Link>
 
         <Link to="/studentet" className={linkClass("/studentet")}>
-          <span className="text-lg">◻</span>
-          <span>Studentët</span>
+          Studentët
         </Link>
 
         <Link to="/profesoret" className={linkClass("/profesoret")}>
-          <span className="text-lg">◻</span>
-          <span>Profesorët</span>
+          Profesorët
         </Link>
 
         <Link to="/lendet" className={linkClass("/lendet")}>
-          <span className="text-lg">◻</span>
-          <span>Lëndët</span>
+          Lëndët
+        </Link>
+
+        <Link to="/drejtimet" className={linkClass("/drejtimet")}>
+          Drejtimet
+        </Link>
+
+        <Link to="/fakultetet" className={linkClass("/fakultetet")}>
+          Fakultetet
+        </Link>
+        <Link to="/departamentet" className={linkClass("/departamentet")}>
+          Departamentet
+        </Link>
+        <Link to="/regjistrimet" className={linkClass("/regjistrimet")}>
+          Regjistrimet
+        </Link>
+
+        <Link to="/provimet" className={linkClass("/provimet")}>
+          Provimet
+        </Link>
+
+        <Link to="/notat" className={linkClass("/notat")}>
+          Notat
+        </Link>
+
+        <Link to="/oraret" className={linkClass("/oraret")}>
+          Oraret
         </Link>
       </nav>
     </aside>
