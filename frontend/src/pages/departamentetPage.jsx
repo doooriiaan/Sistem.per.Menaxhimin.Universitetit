@@ -1,31 +1,114 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
+import PaginationControls from "../components/PaginationControls";
+import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import {
+  buildLookup,
+  formatPersonName,
+  getDefaultId,
+  getLabelById,
+  normalizeFormValue,
+} from "../utils/relations";
+import {
+  buildFilterOptions,
+  matchesSearchTerm,
+  paginateItems,
+} from "../utils/table";
+import {
+  getApiErrorMessage,
+  validateDepartamentiForm,
+} from "../utils/validation";
 
 const emptyForm = {
   emri: "",
-  fakulteti_id: 1,
+  fakulteti_id: "",
   shefi_id: "",
   pershkrimi: "",
 };
 
 function DepartamentetPage() {
   const [departamentet, setDepartamentet] = useState([]);
+  const [fakultetet, setFakultetet] = useState([]);
+  const [profesoret, setProfesoret] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterValue, setFilterValue] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingDepartamenti, setEditingDepartamenti] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
+  const fakultetetLookup = buildLookup(
+    fakultetet,
+    "fakultet_id",
+    (fakulteti) => fakulteti.emri
+  );
+  const profesoretLookup = buildLookup(
+    profesoret,
+    "profesor_id",
+    formatPersonName
+  );
+
+  const filteredDepartamentet = departamentet.filter((departamenti) => {
+    const fakultetiValue = String(departamenti.fakulteti_id ?? "");
+    const matchesFilter =
+      filterValue === "all" || fakultetiValue === filterValue;
+
+    return (
+      matchesFilter &&
+      matchesSearchTerm(
+        [
+          departamenti.departament_id,
+          departamenti.emri,
+          departamenti.pershkrimi,
+          getLabelById(
+            fakultetetLookup,
+            departamenti.fakulteti_id,
+            "Fakulteti"
+          ),
+          getLabelById(profesoretLookup, departamenti.shefi_id, "Shefi"),
+        ],
+        deferredSearchTerm
+      )
+    );
+  });
+
+  const departamentetPagination = paginateItems(
+    filteredDepartamentet,
+    currentPage,
+    pageSize
+  );
+  const fakultetiFilterOptions = buildFilterOptions(
+    fakultetet,
+    (fakulteti) => fakulteti.fakultet_id,
+    (fakulteti) => fakulteti.emri,
+    "Te gjitha fakultetet"
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterValue, pageSize]);
+
   const fetchDepartamentet = async () => {
     try {
       setLoading(true);
-      const res = await API.get("/departamentet");
-      setDepartamentet(res.data);
+      const [departamentetRes, fakultetetRes, profesoretRes] =
+        await Promise.all([
+          API.get("/departamentet"),
+          API.get("/fakultetet"),
+          API.get("/profesoret"),
+        ]);
+
+      setDepartamentet(departamentetRes.data);
+      setFakultetet(fakultetetRes.data);
+      setProfesoret(profesoretRes.data);
       setError("");
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë marrjes së departamenteve.");
+      setError(getApiErrorMessage(err, "Gabim gjate marrjes se departamenteve."));
     } finally {
       setLoading(false);
     }
@@ -36,22 +119,21 @@ function DepartamentetPage() {
   }, []);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    setError("");
 
     setForm((prev) => ({
       ...prev,
-      [name]:
-        name === "fakulteti_id" || name === "shefi_id"
-          ? value === ""
-            ? ""
-            : Number(value)
-          : value,
+      [name]: normalizeFormValue(name, value, type),
     }));
   };
 
   const openAddModal = () => {
     setEditingDepartamenti(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      fakulteti_id: getDefaultId(fakultetet, "fakultet_id"),
+    });
     setShowModal(true);
     setError("");
   };
@@ -76,6 +158,12 @@ function DepartamentetPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationError = validateDepartamentiForm(form);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     try {
       const payload = {
@@ -97,9 +185,12 @@ function DepartamentetPage() {
     } catch (err) {
       console.error(err);
       setError(
-        editingDepartamenti
-          ? "Gabim gjatë përditësimit të departamentit."
-          : "Gabim gjatë shtimit të departamentit."
+        getApiErrorMessage(
+          err,
+          editingDepartamenti
+            ? "Gabim gjate perditesimit te departamentit."
+            : "Gabim gjate shtimit te departamentit."
+        )
       );
     }
   };
@@ -110,7 +201,7 @@ function DepartamentetPage() {
       fetchDepartamentet();
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë fshirjes së departamentit.");
+      setError(getApiErrorMessage(err, "Gabim gjate fshirjes se departamentit."));
     }
   };
 
@@ -142,64 +233,99 @@ function DepartamentetPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-500">Duke i marrë departamentet...</p>
+          <p className="text-slate-500">Duke i marre departamentet...</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600">
-                <tr>
-                  <th className="p-4 text-left">ID</th>
-                  <th className="p-4 text-left">Emri</th>
-                  <th className="p-4 text-left">Fakulteti ID</th>
-                  <th className="p-4 text-left">Shefi ID</th>
-                  <th className="p-4 text-left">Pershkrimi</th>
-                  <th className="p-4 text-left">Actions</th>
-                </tr>
-              </thead>
+          <>
+            <TableToolbar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Kerko sipas emrit, fakultetit ose shefit..."
+              filterValue={filterValue}
+              onFilterChange={setFilterValue}
+              filterOptions={fakultetiFilterOptions}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              totalItems={filteredDepartamentet.length}
+            />
 
-              <tbody>
-                {departamentet.length > 0 ? (
-                  departamentet.map((departamenti) => (
-                    <tr
-                      key={departamenti.departament_id}
-                      className="border-t border-slate-200 hover:bg-slate-50"
-                    >
-                      <td className="p-4">{departamenti.departament_id}</td>
-                      <td className="p-4">{departamenti.emri}</td>
-                      <td className="p-4">{departamenti.fakulteti_id}</td>
-                      <td className="p-4">{departamenti.shefi_id || "-"}</td>
-                      <td className="p-4">{departamenti.pershkrimi}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => openEditModal(departamenti)}
-                            className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-                          >
-                            Update
-                          </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 text-slate-600">
+                  <tr>
+                    <th className="p-4 text-left">ID</th>
+                    <th className="p-4 text-left">Emri</th>
+                    <th className="p-4 text-left">Fakulteti</th>
+                    <th className="p-4 text-left">Shefi</th>
+                    <th className="p-4 text-left">Pershkrimi</th>
+                    <th className="p-4 text-left">Actions</th>
+                  </tr>
+                </thead>
 
-                          <button
-                            onClick={() =>
-                              handleDelete(departamenti.departament_id)
-                            }
-                            className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                <tbody>
+                  {filteredDepartamentet.length > 0 ? (
+                    departamentetPagination.items.map((departamenti) => (
+                      <tr
+                        key={departamenti.departament_id}
+                        className="border-t border-slate-200 hover:bg-slate-50"
+                      >
+                        <td className="p-4">{departamenti.departament_id}</td>
+                        <td className="p-4">{departamenti.emri}</td>
+                        <td className="p-4">
+                          {getLabelById(
+                            fakultetetLookup,
+                            departamenti.fakulteti_id,
+                            "Fakulteti"
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {getLabelById(
+                            profesoretLookup,
+                            departamenti.shefi_id,
+                            "Shefi"
+                          )}
+                        </td>
+                        <td className="p-4">{departamenti.pershkrimi}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => openEditModal(departamenti)}
+                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                            >
+                              Update
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleDelete(departamenti.departament_id)
+                              }
+                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="p-6 text-center text-slate-500">
+                        Nuk u gjet asnje departament per filtrat aktuale.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="p-6 text-center text-slate-500">
-                      Nuk ka departamente për momentin.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={departamentetPagination.currentPage}
+              totalPages={departamentetPagination.totalPages}
+              totalItems={departamentetPagination.totalItems}
+              startItem={departamentetPagination.startItem}
+              endItem={departamentetPagination.endItem}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
@@ -209,6 +335,12 @@ function DepartamentetPage() {
             <h3 className="text-lg font-semibold mb-4 text-slate-800">
               {editingDepartamenti ? "Edit Departament" : "Shto Departament"}
             </h3>
+
+            {error && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
 
             <form
               onSubmit={handleSubmit}
@@ -228,31 +360,44 @@ function DepartamentetPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
-                  Fakulteti ID
+                  Fakulteti
                 </p>
-                <input
+                <select
                   name="fakulteti_id"
-                  type="number"
-                  placeholder="Fakulteti ID"
                   value={form.fakulteti_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh fakultetin</option>
+                  {fakultetet.map((fakulteti) => (
+                    <option
+                      key={fakulteti.fakultet_id}
+                      value={fakulteti.fakultet_id}
+                    >
+                      {fakulteti.emri}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
-                  Shefi ID
+                  Shefi
                 </p>
-                <input
+                <select
                   name="shefi_id"
-                  type="number"
-                  placeholder="Shefi ID"
                   value={form.shefi_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                />
+                >
+                  <option value="">Pa shef</option>
+                  {profesoret.map((profesor) => (
+                    <option key={profesor.profesor_id} value={profesor.profesor_id}>
+                      {formatPersonName(profesor)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2">

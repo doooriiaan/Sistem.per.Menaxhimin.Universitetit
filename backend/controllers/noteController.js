@@ -1,10 +1,28 @@
 const db = require("../db");
+const {
+  handleDbError,
+  isNumberInRange,
+  isPositiveInteger,
+  isValidDate,
+  sendValidationError,
+} = require("../utils/validation");
+
+const validateNotaPayload = (payload) => {
+  const { student_id, provimi_id, nota, data_vendosjes } = payload;
+
+  if (!isPositiveInteger(student_id)) return "Studenti duhet te zgjidhet sakte.";
+  if (!isPositiveInteger(provimi_id)) return "Provimi duhet te zgjidhet sakte.";
+  if (!isNumberInRange(nota, 5, 10)) return "Nota duhet te jete nga 5 deri ne 10.";
+  if (!isValidDate(data_vendosjes)) return "Data e vendosjes nuk eshte valide.";
+
+  return null;
+};
 
 const getallnotat = (req, res) => {
   const sql = "SELECT * FROM notat";
 
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate marrjes se notave.");
     res.json(results);
   });
 };
@@ -14,7 +32,7 @@ const getnotabyid = (req, res) => {
   const sql = "SELECT * FROM notat WHERE nota_id = ?";
 
   db.query(sql, [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate marrjes se notes.");
 
     if (results.length === 0) {
       return res.status(404).json({ message: "Nota nuk u gjet" });
@@ -25,6 +43,12 @@ const getnotabyid = (req, res) => {
 };
 
 const createnota = (req, res) => {
+  const validationError = validateNotaPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const { student_id, provimi_id, nota, data_vendosjes } = req.body;
 
   const sql = `
@@ -37,7 +61,7 @@ const createnota = (req, res) => {
     sql,
     [student_id, provimi_id, nota, data_vendosjes],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) return handleDbError(res, err, "Gabim gjate shtimit te notes.");
 
       res.status(201).json({
         message: "Nota u shtua",
@@ -49,6 +73,12 @@ const createnota = (req, res) => {
 
 const updatenota = (req, res) => {
   const { id } = req.params;
+  const validationError = validateNotaPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const { student_id, provimi_id, nota, data_vendosjes } = req.body;
 
   const sql = `
@@ -61,7 +91,7 @@ const updatenota = (req, res) => {
     sql,
     [student_id, provimi_id, nota, data_vendosjes, id],
     (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) return handleDbError(res, err, "Gabim gjate perditesimit te notes.");
 
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: "Nota nuk u gjet" });
@@ -77,7 +107,7 @@ const deletenota = (req, res) => {
   const sql = "DELETE FROM notat WHERE nota_id = ?";
 
   db.query(sql, [id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate fshirjes se notes.");
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Nota nuk u gjet" });
@@ -105,7 +135,7 @@ const getnotatdetails = (req, res) => {
   `;
 
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate marrjes se detajeve te notave.");
     res.json(results);
   });
 };

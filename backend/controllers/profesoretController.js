@@ -1,11 +1,45 @@
 const db = require("../db");
+const {
+  handleDbError,
+  isNonEmptyString,
+  isPositiveInteger,
+  isValidDate,
+  isValidEmail,
+  sendValidationError,
+} = require("../utils/validation");
+
+const validateProfesorPayload = (payload) => {
+  const {
+    emri,
+    mbiemri,
+    titulli_akademik,
+    departamenti_id,
+    email,
+    telefoni,
+    specializimi,
+    data_punesimit,
+  } = payload;
+
+  if (!isNonEmptyString(emri)) return "Emri eshte i detyrueshem.";
+  if (!isNonEmptyString(mbiemri)) return "Mbiemri eshte i detyrueshem.";
+  if (!isNonEmptyString(titulli_akademik)) {
+    return "Titulli akademik eshte i detyrueshem.";
+  }
+  if (!isPositiveInteger(departamenti_id)) return "Departamenti duhet te zgjidhet sakte.";
+  if (!isValidEmail(email)) return "Email nuk eshte valid.";
+  if (!isNonEmptyString(telefoni)) return "Telefoni eshte i detyrueshem.";
+  if (!isNonEmptyString(specializimi)) return "Specializimi eshte i detyrueshem.";
+  if (!isValidDate(data_punesimit)) return "Data e punesimit nuk eshte valide.";
+
+  return null;
+};
 
 const getallprofesoret = (req, res) => {
   const sql = "SELECT * FROM profesoret";
 
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se profesoreve.");
     }
 
     res.json(results);
@@ -18,7 +52,7 @@ const getprofesoribyid = (req, res) => {
 
   db.query(sql, [id], (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se profesorit.");
     }
 
     if (results.length === 0) {
@@ -30,6 +64,12 @@ const getprofesoribyid = (req, res) => {
 };
 
 const createprofesor = (req, res) => {
+  const validationError = validateProfesorPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     emri,
     mbiemri,
@@ -52,7 +92,7 @@ const createprofesor = (req, res) => {
     [emri, mbiemri, titulli_akademik, departamenti_id, email, telefoni, specializimi, data_punesimit],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate shtimit te profesorit.");
       }
 
       res.status(201).json({
@@ -65,6 +105,12 @@ const createprofesor = (req, res) => {
 
 const updateprofesor = (req, res) => {
   const { id } = req.params;
+  const validationError = validateProfesorPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     emri,
     mbiemri,
@@ -87,7 +133,7 @@ const updateprofesor = (req, res) => {
     [emri, mbiemri, titulli_akademik, departamenti_id, email, telefoni, specializimi, data_punesimit, id],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate perditesimit te profesorit.");
       }
 
       if (result.affectedRows === 0) {
@@ -105,7 +151,7 @@ const deleteprofesor = (req, res) => {
 
   db.query(sql, [id], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate fshirjes se profesorit.");
     }
 
     if (result.affectedRows === 0) {

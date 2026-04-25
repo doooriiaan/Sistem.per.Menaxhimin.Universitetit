@@ -1,9 +1,23 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
+import PaginationControls from "../components/PaginationControls";
+import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import {
+  buildLookup,
+  getDefaultId,
+  getLabelById,
+  normalizeFormValue,
+} from "../utils/relations";
+import {
+  buildFilterOptions,
+  matchesSearchTerm,
+  paginateItems,
+} from "../utils/table";
+import { getApiErrorMessage, validateDrejtimiForm } from "../utils/validation";
 
 const emptyForm = {
   emri: "",
-  fakulteti_id: 1,
+  fakulteti_id: "",
   niveli: "",
   kohezgjatja_vite: 3,
   pershkrimi: "",
@@ -11,22 +25,79 @@ const emptyForm = {
 
 function DrejtimetPage() {
   const [drejtimet, setDrejtimet] = useState([]);
+  const [fakultetet, setFakultetet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterValue, setFilterValue] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingDrejtimi, setEditingDrejtimi] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
+  const fakultetetLookup = buildLookup(
+    fakultetet,
+    "fakultet_id",
+    (fakulteti) => fakulteti.emri
+  );
+
+  const filteredDrejtimet = drejtimet.filter((drejtimi) => {
+    const fakultetiValue = String(drejtimi.fakulteti_id ?? "");
+    const matchesFilter =
+      filterValue === "all" || fakultetiValue === filterValue;
+
+    return (
+      matchesFilter &&
+      matchesSearchTerm(
+        [
+          drejtimi.drejtim_id,
+          drejtimi.emri,
+          drejtimi.niveli,
+          drejtimi.kohezgjatja_vite,
+          drejtimi.pershkrimi,
+          getLabelById(
+            fakultetetLookup,
+            drejtimi.fakulteti_id,
+            "Fakulteti"
+          ),
+        ],
+        deferredSearchTerm
+      )
+    );
+  });
+
+  const drejtimetPagination = paginateItems(
+    filteredDrejtimet,
+    currentPage,
+    pageSize
+  );
+  const fakultetiFilterOptions = buildFilterOptions(
+    fakultetet,
+    (fakulteti) => fakulteti.fakultet_id,
+    (fakulteti) => fakulteti.emri,
+    "Te gjitha fakultetet"
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterValue, pageSize]);
+
   const fetchDrejtimet = async () => {
     try {
       setLoading(true);
-      const res = await API.get("/drejtimet");
-      setDrejtimet(res.data);
+      const [drejtimetRes, fakultetetRes] = await Promise.all([
+        API.get("/drejtimet"),
+        API.get("/fakultetet"),
+      ]);
+
+      setDrejtimet(drejtimetRes.data);
+      setFakultetet(fakultetetRes.data);
       setError("");
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë marrjes së drejtimeve.");
+      setError(getApiErrorMessage(err, "Gabim gjate marrjes se drejtimeve."));
     } finally {
       setLoading(false);
     }
@@ -38,16 +109,20 @@ function DrejtimetPage() {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    setError("");
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === "number" ? Number(value) : value,
+      [name]: normalizeFormValue(name, value, type),
     }));
   };
 
   const openAddModal = () => {
     setEditingDrejtimi(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      fakulteti_id: getDefaultId(fakultetet, "fakultet_id"),
+    });
     setShowModal(true);
     setError("");
   };
@@ -73,6 +148,12 @@ function DrejtimetPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationError = validateDrejtimiForm(form);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     try {
       if (editingDrejtimi) {
@@ -86,9 +167,12 @@ function DrejtimetPage() {
     } catch (err) {
       console.error(err);
       setError(
-        editingDrejtimi
-          ? "Gabim gjatë përditësimit të drejtimit."
-          : "Gabim gjatë shtimit të drejtimit."
+        getApiErrorMessage(
+          err,
+          editingDrejtimi
+            ? "Gabim gjate perditesimit te drejtimit."
+            : "Gabim gjate shtimit te drejtimit."
+        )
       );
     }
   };
@@ -99,7 +183,7 @@ function DrejtimetPage() {
       fetchDrejtimet();
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë fshirjes së drejtimit.");
+      setError(getApiErrorMessage(err, "Gabim gjate fshirjes se drejtimit."));
     }
   };
 
@@ -129,64 +213,93 @@ function DrejtimetPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-500">Duke i marrë drejtimet...</p>
+          <p className="text-slate-500">Duke i marre drejtimet...</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600">
-                <tr>
-                  <th className="p-4 text-left">ID</th>
-                  <th className="p-4 text-left">Emri</th>
-                  <th className="p-4 text-left">Fakulteti ID</th>
-                  <th className="p-4 text-left">Niveli</th>
-                  <th className="p-4 text-left">Kohezgjatja</th>
-                  <th className="p-4 text-left">Pershkrimi</th>
-                  <th className="p-4 text-left">Actions</th>
-                </tr>
-              </thead>
+          <>
+            <TableToolbar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Kerko sipas emrit, fakultetit ose nivelit..."
+              filterValue={filterValue}
+              onFilterChange={setFilterValue}
+              filterOptions={fakultetiFilterOptions}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              totalItems={filteredDrejtimet.length}
+            />
 
-              <tbody>
-                {drejtimet.length > 0 ? (
-                  drejtimet.map((drejtimi) => (
-                    <tr
-                      key={drejtimi.drejtim_id}
-                      className="border-t border-slate-200 hover:bg-slate-50"
-                    >
-                      <td className="p-4">{drejtimi.drejtim_id}</td>
-                      <td className="p-4">{drejtimi.emri}</td>
-                      <td className="p-4">{drejtimi.fakulteti_id}</td>
-                      <td className="p-4">{drejtimi.niveli}</td>
-                      <td className="p-4">{drejtimi.kohezgjatja_vite}</td>
-                      <td className="p-4">{drejtimi.pershkrimi}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => openEditModal(drejtimi)}
-                            className="bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
-                          >
-                            Update
-                          </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 text-slate-600">
+                  <tr>
+                    <th className="p-4 text-left">ID</th>
+                    <th className="p-4 text-left">Emri</th>
+                    <th className="p-4 text-left">Fakulteti</th>
+                    <th className="p-4 text-left">Niveli</th>
+                    <th className="p-4 text-left">Kohezgjatja</th>
+                    <th className="p-4 text-left">Pershkrimi</th>
+                    <th className="p-4 text-left">Actions</th>
+                  </tr>
+                </thead>
 
-                          <button
-                            onClick={() => handleDelete(drejtimi.drejtim_id)}
-                            className="bg-red-500 text-white font-medium hover:bg-red-600 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                <tbody>
+                  {filteredDrejtimet.length > 0 ? (
+                    drejtimetPagination.items.map((drejtimi) => (
+                      <tr
+                        key={drejtimi.drejtim_id}
+                        className="border-t border-slate-200 hover:bg-slate-50"
+                      >
+                        <td className="p-4">{drejtimi.drejtim_id}</td>
+                        <td className="p-4">{drejtimi.emri}</td>
+                        <td className="p-4">
+                          {getLabelById(
+                            fakultetetLookup,
+                            drejtimi.fakulteti_id,
+                            "Fakulteti"
+                          )}
+                        </td>
+                        <td className="p-4">{drejtimi.niveli}</td>
+                        <td className="p-4">{drejtimi.kohezgjatja_vite}</td>
+                        <td className="p-4">{drejtimi.pershkrimi}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => openEditModal(drejtimi)}
+                              className="bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
+                            >
+                              Update
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(drejtimi.drejtim_id)}
+                              className="bg-red-500 text-white font-medium hover:bg-red-600 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="p-6 text-center text-slate-500">
+                        Nuk u gjet asnje drejtim per filtrat aktuale.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="p-6 text-center text-slate-500">
-                      Nuk ka drejtime për momentin.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={drejtimetPagination.currentPage}
+              totalPages={drejtimetPagination.totalPages}
+              totalItems={drejtimetPagination.totalItems}
+              startItem={drejtimetPagination.startItem}
+              endItem={drejtimetPagination.endItem}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
@@ -196,6 +309,12 @@ function DrejtimetPage() {
             <h3 className="text-lg font-semibold mb-4 text-slate-800">
               {editingDrejtimi ? "Edit Drejtim" : "Shto Drejtim"}
             </h3>
+
+            {error && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
 
             <form
               onSubmit={handleSubmit}
@@ -215,17 +334,25 @@ function DrejtimetPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
-                  Fakulteti ID
+                  Fakulteti
                 </p>
-                <input
+                <select
                   name="fakulteti_id"
-                  type="number"
-                  placeholder="Fakulteti ID"
                   value={form.fakulteti_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh fakultetin</option>
+                  {fakultetet.map((fakulteti) => (
+                    <option
+                      key={fakulteti.fakultet_id}
+                      value={fakulteti.fakultet_id}
+                    >
+                      {fakulteti.emri}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -249,6 +376,7 @@ function DrejtimetPage() {
                 <input
                   name="kohezgjatja_vite"
                   type="number"
+                  min="1"
                   placeholder="Kohezgjatja Vite"
                   value={form.kohezgjatja_vite}
                   onChange={handleChange}

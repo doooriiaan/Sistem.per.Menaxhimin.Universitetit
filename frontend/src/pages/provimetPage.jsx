@@ -1,9 +1,26 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
+import PaginationControls from "../components/PaginationControls";
+import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import {
+  buildLookup,
+  formatCourseName,
+  formatDateInputValue,
+  formatPersonName,
+  getDefaultId,
+  getLabelById,
+  normalizeFormValue,
+} from "../utils/relations";
+import {
+  buildFilterOptions,
+  matchesSearchTerm,
+  paginateItems,
+} from "../utils/table";
+import { getApiErrorMessage, validateProvimiForm } from "../utils/validation";
 
 const emptyForm = {
-  lende_id: 1,
-  profesor_id: 1,
+  lende_id: "",
+  profesor_id: "",
   data_provimit: "",
   ora: "",
   salla: "",
@@ -12,21 +29,78 @@ const emptyForm = {
 
 function ProvimetPage() {
   const [provimet, setProvimet] = useState([]);
+  const [lendet, setLendet] = useState([]);
+  const [profesoret, setProfesoret] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterValue, setFilterValue] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingProvimi, setEditingProvimi] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
+  const lendetLookup = buildLookup(lendet, "lende_id", formatCourseName);
+  const profesoretLookup = buildLookup(
+    profesoret,
+    "profesor_id",
+    formatPersonName
+  );
+
+  const filteredProvimet = provimet.filter((item) => {
+    const matchesFilter = filterValue === "all" || item.afati === filterValue;
+
+    return (
+      matchesFilter &&
+      matchesSearchTerm(
+        [
+          item.provimi_id,
+          item.salla,
+          item.afati,
+          item.ora,
+          formatDateInputValue(item.data_provimit),
+          getLabelById(lendetLookup, item.lende_id, "Lenda"),
+          getLabelById(profesoretLookup, item.profesor_id, "Profesori"),
+        ],
+        deferredSearchTerm
+      )
+    );
+  });
+
+  const provimetPagination = paginateItems(
+    filteredProvimet,
+    currentPage,
+    pageSize
+  );
+  const termFilterOptions = buildFilterOptions(
+    provimet,
+    (item) => item.afati,
+    (item) => item.afati,
+    "Te gjitha afatet"
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterValue, pageSize]);
+
   const fetchProvimet = async () => {
     try {
       setLoading(true);
-      const res = await API.get("/provimet");
-      setProvimet(res.data);
+      const [provimetRes, lendetRes, profesoretRes] = await Promise.all([
+        API.get("/provimet"),
+        API.get("/lendet"),
+        API.get("/profesoret"),
+      ]);
+
+      setProvimet(provimetRes.data);
+      setLendet(lendetRes.data);
+      setProfesoret(profesoretRes.data);
       setError("");
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë marrjes së provimeve.");
+      setError(getApiErrorMessage(err, "Gabim gjate marrjes se provimeve."));
     } finally {
       setLoading(false);
     }
@@ -38,15 +112,21 @@ function ProvimetPage() {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    setError("");
+
     setForm((prev) => ({
       ...prev,
-      [name]: type === "number" ? Number(value) : value,
+      [name]: normalizeFormValue(name, value, type),
     }));
   };
 
   const openAddModal = () => {
     setEditingProvimi(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      lende_id: getDefaultId(lendet, "lende_id"),
+      profesor_id: getDefaultId(profesoret, "profesor_id"),
+    });
     setShowModal(true);
     setError("");
   };
@@ -56,7 +136,7 @@ function ProvimetPage() {
     setForm({
       lende_id: provimi.lende_id || 1,
       profesor_id: provimi.profesor_id || 1,
-      data_provimit: provimi.data_provimit ? provimi.data_provimit.split("T")[0] : "",
+      data_provimit: formatDateInputValue(provimi.data_provimit),
       ora: provimi.ora || "",
       salla: provimi.salla || "",
       afati: provimi.afati || "",
@@ -73,6 +153,12 @@ function ProvimetPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationError = validateProvimiForm(form);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     try {
       if (editingProvimi) {
@@ -86,9 +172,12 @@ function ProvimetPage() {
     } catch (err) {
       console.error(err);
       setError(
-        editingProvimi
-          ? "Gabim gjatë përditësimit të provimit."
-          : "Gabim gjatë shtimit të provimit."
+        getApiErrorMessage(
+          err,
+          editingProvimi
+            ? "Gabim gjate perditesimit te provimit."
+            : "Gabim gjate shtimit te provimit."
+        )
       );
     }
   };
@@ -99,7 +188,7 @@ function ProvimetPage() {
       fetchProvimet();
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë fshirjes së provimit.");
+      setError(getApiErrorMessage(err, "Gabim gjate fshirjes se provimit."));
     }
   };
 
@@ -127,66 +216,97 @@ function ProvimetPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-500">Duke i marrë provimet...</p>
+          <p className="text-slate-500">Duke i marre provimet...</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600">
-                <tr>
-                  <th className="p-4 text-left">ID</th>
-                  <th className="p-4 text-left">Lende ID</th>
-                  <th className="p-4 text-left">Profesor ID</th>
-                  <th className="p-4 text-left">Data</th>
-                  <th className="p-4 text-left">Ora</th>
-                  <th className="p-4 text-left">Salla</th>
-                  <th className="p-4 text-left">Afati</th>
-                  <th className="p-4 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {provimet.length > 0 ? (
-                  provimet.map((item) => (
-                    <tr
-                      key={item.provimi_id}
-                      className="border-t border-slate-200 hover:bg-slate-50"
-                    >
-                      <td className="p-4">{item.provimi_id}</td>
-                      <td className="p-4">{item.lende_id}</td>
-                      <td className="p-4">{item.profesor_id}</td>
-                      <td className="p-4">
-                        {item.data_provimit ? item.data_provimit.split("T")[0] : ""}
-                      </td>
-                      <td className="p-4">{item.ora}</td>
-                      <td className="p-4">{item.salla}</td>
-                      <td className="p-4">{item.afati}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
-                          >
-                            Update
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.provimi_id)}
-                            className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
+          <>
+            <TableToolbar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Kerko sipas lendes, profesorit ose afatit..."
+              filterValue={filterValue}
+              onFilterChange={setFilterValue}
+              filterOptions={termFilterOptions}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              totalItems={filteredProvimet.length}
+            />
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 text-slate-600">
+                  <tr>
+                    <th className="p-4 text-left">ID</th>
+                    <th className="p-4 text-left">Lenda</th>
+                    <th className="p-4 text-left">Profesori</th>
+                    <th className="p-4 text-left">Data</th>
+                    <th className="p-4 text-left">Ora</th>
+                    <th className="p-4 text-left">Salla</th>
+                    <th className="p-4 text-left">Afati</th>
+                    <th className="p-4 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProvimet.length > 0 ? (
+                    provimetPagination.items.map((item) => (
+                      <tr
+                        key={item.provimi_id}
+                        className="border-t border-slate-200 hover:bg-slate-50"
+                      >
+                        <td className="p-4">{item.provimi_id}</td>
+                        <td className="p-4">
+                          {getLabelById(lendetLookup, item.lende_id, "Lenda")}
+                        </td>
+                        <td className="p-4">
+                          {getLabelById(
+                            profesoretLookup,
+                            item.profesor_id,
+                            "Profesori"
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {formatDateInputValue(item.data_provimit)}
+                        </td>
+                        <td className="p-4">{item.ora}</td>
+                        <td className="p-4">{item.salla}</td>
+                        <td className="p-4">{item.afati}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                            >
+                              Update
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item.provimi_id)}
+                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8" className="p-6 text-center text-slate-500">
+                        Nuk u gjet asnje provim per filtrat aktuale.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8" className="p-6 text-center text-slate-500">
-                      Nuk ka provime për momentin.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={provimetPagination.currentPage}
+              totalPages={provimetPagination.totalPages}
+              totalItems={provimetPagination.totalItems}
+              startItem={provimetPagination.startItem}
+              endItem={provimetPagination.endItem}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
@@ -197,33 +317,58 @@ function ProvimetPage() {
               {editingProvimi ? "Edit Provim" : "Shto Provim"}
             </h3>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {error && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSubmit}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Lende ID</p>
-                <input
+                <p className="text-sm font-medium text-slate-700 mb-1">Lenda</p>
+                <select
                   name="lende_id"
-                  type="number"
                   value={form.lende_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh lenden</option>
+                  {lendet.map((lenda) => (
+                    <option key={lenda.lende_id} value={lenda.lende_id}>
+                      {formatCourseName(lenda)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Profesor ID</p>
-                <input
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Profesori
+                </p>
+                <select
                   name="profesor_id"
-                  type="number"
                   value={form.profesor_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh profesorin</option>
+                  {profesoret.map((profesor) => (
+                    <option key={profesor.profesor_id} value={profesor.profesor_id}>
+                      {formatPersonName(profesor)}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Data Provimit</p>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Data Provimit
+                </p>
                 <input
                   name="data_provimit"
                   type="date"

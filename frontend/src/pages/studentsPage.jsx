@@ -1,5 +1,16 @@
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
+import PaginationControls from "../components/PaginationControls";
+import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import {
+  buildLookup,
+  formatDateInputValue,
+  getDefaultId,
+  getLabelById,
+  normalizeFormValue,
+} from "../utils/relations";
+import { matchesSearchTerm, paginateItems } from "../utils/table";
+import { getApiErrorMessage, validateStudentForm } from "../utils/validation";
 
 const emptyForm = {
   emri: "",
@@ -10,29 +21,77 @@ const emptyForm = {
   email: "",
   telefoni: "",
   adresa: "",
-  drejtimi_id: 1,
+  drejtimi_id: "",
   viti_studimit: 1,
   statusi: "Aktiv",
 };
 
 function StudentsPage() {
   const [students, setStudents] = useState([]);
+  const [drejtimet, setDrejtimet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterValue, setFilterValue] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
+  const drejtimetLookup = buildLookup(
+    drejtimet,
+    "drejtim_id",
+    (drejtimi) => drejtimi.emri
+  );
+
+  const filteredStudents = students.filter((student) => {
+    const matchesFilter =
+      filterValue === "all" || student.statusi === filterValue;
+
+    return (
+      matchesFilter &&
+      matchesSearchTerm(
+        [
+          student.student_id,
+          student.emri,
+          student.mbiemri,
+          student.numri_personal,
+          student.email,
+          student.telefoni,
+          getLabelById(drejtimetLookup, student.drejtimi_id, "Drejtimi"),
+          student.statusi,
+        ],
+        deferredSearchTerm
+      )
+    );
+  });
+
+  const studentsPagination = paginateItems(
+    filteredStudents,
+    currentPage,
+    pageSize
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterValue, pageSize]);
+
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const res = await API.get("/studentet");
-      setStudents(res.data);
+      const [studentsRes, drejtimetRes] = await Promise.all([
+        API.get("/studentet"),
+        API.get("/drejtimet"),
+      ]);
+
+      setStudents(studentsRes.data);
+      setDrejtimet(drejtimetRes.data);
       setError("");
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë marrjes së studentëve.");
+      setError(getApiErrorMessage(err, "Gabim gjate marrjes se studenteve."));
     } finally {
       setLoading(false);
     }
@@ -44,16 +103,20 @@ function StudentsPage() {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    setError("");
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === "number" ? Number(value) : value,
+      [name]: normalizeFormValue(name, value, type),
     }));
   };
 
   const openAddModal = () => {
     setEditingStudent(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      drejtimi_id: getDefaultId(drejtimet, "drejtim_id"),
+    });
     setShowModal(true);
     setError("");
   };
@@ -64,9 +127,7 @@ function StudentsPage() {
       emri: student.emri || "",
       mbiemri: student.mbiemri || "",
       numri_personal: student.numri_personal || "",
-      data_lindjes: student.data_lindjes
-        ? String(student.data_lindjes).split("T")[0]
-        : "",
+      data_lindjes: formatDateInputValue(student.data_lindjes),
       gjinia: student.gjinia || "M",
       email: student.email || "",
       telefoni: student.telefoni || "",
@@ -87,6 +148,12 @@ function StudentsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationError = validateStudentForm(form);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     try {
       if (editingStudent) {
@@ -100,9 +167,12 @@ function StudentsPage() {
     } catch (err) {
       console.error(err);
       setError(
-        editingStudent
-          ? "Gabim gjatë përditësimit të studentit."
-          : "Gabim gjatë shtimit të studentit."
+        getApiErrorMessage(
+          err,
+          editingStudent
+            ? "Gabim gjate perditesimit te studentit."
+            : "Gabim gjate shtimit te studentit."
+        )
       );
     }
   };
@@ -113,7 +183,7 @@ function StudentsPage() {
       fetchStudents();
     } catch (err) {
       console.error(err);
-      setError("Gabim gjatë fshirjes së studentit.");
+      setError(getApiErrorMessage(err, "Gabim gjate fshirjes se studentit."));
     }
   };
 
@@ -122,15 +192,15 @@ function StudentsPage() {
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Studentët</h2>
+            <h2 className="text-2xl font-bold text-slate-800">Studentet</h2>
             <p className="text-sm text-slate-500 mt-1">
-              Menaxho studentët e universitetit
+              Menaxho studentet e universitetit
             </p>
           </div>
 
           <button
             onClick={openAddModal}
-            className="bg-slate-900 text-white  px-5 py-3.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition"
+            className="bg-slate-900 text-white px-5 py-3.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition"
           >
             + Shto Student
           </button>
@@ -143,73 +213,106 @@ function StudentsPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-500">Duke i marrë studentët...</p>
+          <p className="text-slate-500">Duke i marre studentet...</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100 text-slate-600">
-                <tr>
-                  <th className="p-4 text-left">ID</th>
-                  <th className="p-4 text-left">Emri</th>
-                  <th className="p-4 text-left">Mbiemri</th>
-                  <th className="p-4 text-left">Nr. Personal</th>
-                  <th className="p-4 text-left">Email</th>
-                  <th className="p-4 text-left">Telefoni</th>
-                  <th className="p-4 text-left">Drejtimi ID</th>
-                  <th className="p-4 text-left">Viti</th>
-                  <th className="p-4 text-left">Statusi</th>
-                  <th className="p-4 text-left">Actions</th>
-                </tr>
-              </thead>
+          <>
+            <TableToolbar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Kerko sipas emrit, email-it ose numrit personal..."
+              filterValue={filterValue}
+              onFilterChange={setFilterValue}
+              filterOptions={[
+                { value: "all", label: "Te gjithe statuset" },
+                { value: "Aktiv", label: "Aktiv" },
+                { value: "Jo aktiv", label: "Jo aktiv" },
+              ]}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              totalItems={filteredStudents.length}
+            />
 
-              <tbody>
-                {students.length > 0 ? (
-                  students.map((student) => (
-                    <tr
-                      key={student.student_id}
-                      className="border-t border-slate-200 hover:bg-slate-50"
-                    >
-                      <td className="p-4">{student.student_id}</td>
-                      <td className="p-4">{student.emri}</td>
-                      <td className="p-4">{student.mbiemri}</td>
-                      <td className="p-4">{student.numri_personal}</td>
-                      <td className="p-4">{student.email}</td>
-                      <td className="p-4">{student.telefoni}</td>
-                      <td className="p-4">{student.drejtimi_id}</td>
-                      <td className="p-4">{student.viti_studimit}</td>
-                      <td className="p-4">{student.statusi}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => openEditModal(student)}
-                            className="bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
-                          >
-                           Update
-                          </button>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 text-slate-600">
+                  <tr>
+                    <th className="p-4 text-left">ID</th>
+                    <th className="p-4 text-left">Emri</th>
+                    <th className="p-4 text-left">Mbiemri</th>
+                    <th className="p-4 text-left">Nr. Personal</th>
+                    <th className="p-4 text-left">Email</th>
+                    <th className="p-4 text-left">Telefoni</th>
+                    <th className="p-4 text-left">Drejtimi</th>
+                    <th className="p-4 text-left">Viti</th>
+                    <th className="p-4 text-left">Statusi</th>
+                    <th className="p-4 text-left">Actions</th>
+                  </tr>
+                </thead>
 
-                          <button
-                            onClick={() => handleDelete(student.student_id)}
-                            className="bg-red-500 text-white font-medium hover:bg-red-600 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                <tbody>
+                  {filteredStudents.length > 0 ? (
+                    studentsPagination.items.map((student) => (
+                      <tr
+                        key={student.student_id}
+                        className="border-t border-slate-200 hover:bg-slate-50"
+                      >
+                        <td className="p-4">{student.student_id}</td>
+                        <td className="p-4">{student.emri}</td>
+                        <td className="p-4">{student.mbiemri}</td>
+                        <td className="p-4">{student.numri_personal}</td>
+                        <td className="p-4">{student.email}</td>
+                        <td className="p-4">{student.telefoni}</td>
+                        <td className="p-4">
+                          {getLabelById(
+                            drejtimetLookup,
+                            student.drejtimi_id,
+                            "Drejtimi"
+                          )}
+                        </td>
+                        <td className="p-4">{student.viti_studimit}</td>
+                        <td className="p-4">{student.statusi}</td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => openEditModal(student)}
+                              className="bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
+                            >
+                              Update
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(student.student_id)}
+                              className="bg-red-500 text-white font-medium hover:bg-red-600 transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="10"
+                        className="p-6 text-center text-slate-500"
+                      >
+                        Nuk u gjet asnje student per filtrat aktuale.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="10"
-                      className="p-6 text-center text-slate-500"
-                    >
-                      Nuk ka studentë për momentin.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={studentsPagination.currentPage}
+              totalPages={studentsPagination.totalPages}
+              totalItems={studentsPagination.totalItems}
+              startItem={studentsPagination.startItem}
+              endItem={studentsPagination.endItem}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
 
@@ -220,153 +323,185 @@ function StudentsPage() {
               {editingStudent ? "Edit Student" : "Shto Student"}
             </h3>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {error && (
+              <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form
+              onSubmit={handleSubmit}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Emri</p>
-              <input
-                name="emri"
-                placeholder="Emri"
-                value={form.emri}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
-              </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Mbiemri</p>
-              <input
-                name="mbiemri"
-                placeholder="Mbiemri"
-                value={form.mbiemri}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <input
+                  name="emri"
+                  placeholder="Emri"
+                  value={form.emri}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Numri Personal</p>
-              <input
-                name="numri_personal"
-                placeholder="Numri Personal"
-                value={form.numri_personal}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Mbiemri
+                </p>
+                <input
+                  name="mbiemri"
+                  placeholder="Mbiemri"
+                  value={form.mbiemri}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
-
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Data e Lindjes</p>
-              
-              <input
-                type="date"
-                name="data_lindjes"
-                value={form.data_lindjes}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Numri Personal
+                </p>
+                <input
+                  name="numri_personal"
+                  placeholder="Numri Personal"
+                  value={form.numri_personal}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Gjinia</p>
-               
-              <select
-                name="gjinia"
-                value={form.gjinia}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              >
-                <option value="M">M</option>
-                <option value="F">F</option>
-              </select>
-                </div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Data e Lindjes
+                </p>
 
-                <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Email</p>
-                
-              <input
-                name="email"
-                type="email"
-                placeholder="Email"
-                value={form.email}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <input
+                  type="date"
+                  name="data_lindjes"
+                  value={form.data_lindjes}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Telefoni</p>
-              
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Gjinia
+                </p>
 
-              <input
-                name="telefoni"
-                placeholder="Telefoni"
-                value={form.telefoni}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <select
+                  name="gjinia"
+                  value={form.gjinia}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                >
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">Email</p>
+
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Telefoni
+                </p>
+
+                <input
+                  name="telefoni"
+                  placeholder="Telefoni"
+                  value={form.telefoni}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Adresa</p>
-           
 
-              <input
-                name="adresa"
-                placeholder="Adresa"
-                value={form.adresa}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
+                <input
+                  name="adresa"
+                  placeholder="Adresa"
+                  value={form.adresa}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Drejtimi ID</p>
-             
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Drejtimi
+                </p>
 
-              <input
-                name="drejtimi_id"
-                type="number"
-                placeholder="Drejtimi ID"
-                value={form.drejtimi_id}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
-               </div>
+                <select
+                  name="drejtimi_id"
+                  value={form.drejtimi_id}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                >
+                  <option value="">Zgjidh drejtimin</option>
+                  {drejtimet.map((drejtimi) => (
+                    <option
+                      key={drejtimi.drejtim_id}
+                      value={drejtimi.drejtim_id}
+                    >
+                      {drejtimi.emri}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-               <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">Viti Studimit</p>
-              
-              <input
-                name="viti_studimit"
-                type="number"
-                placeholder="Viti Studimit"
-                value={form.viti_studimit}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                required
-              />
-               </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-700 mb-1">Statusi</p>
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Viti Studimit
+                </p>
 
-              <select
-                name="statusi"
-                value={form.statusi}
-                onChange={handleChange}
-                className="w-full border border-slate-300 rounded-xl px-3 py-2 md:col-span-2"
-                required
-              >
-                <option value="Aktiv">Aktiv</option>
-                <option value="Jo aktiv">Jo aktiv</option>
-              </select>
-                </div>
+                <input
+                  name="viti_studimit"
+                  type="number"
+                  min="1"
+                  max="6"
+                  placeholder="Viti Studimit"
+                  value={form.viti_studimit}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
+                  Statusi
+                </p>
+
+                <select
+                  name="statusi"
+                  value={form.statusi}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 md:col-span-2"
+                  required
+                >
+                  <option value="Aktiv">Aktiv</option>
+                  <option value="Jo aktiv">Jo aktiv</option>
+                </select>
+              </div>
 
               <div className="md:col-span-2 flex justify-end gap-3 pt-2">
                 <button
@@ -391,4 +526,5 @@ function StudentsPage() {
     </div>
   );
 }
+
 export default StudentsPage;

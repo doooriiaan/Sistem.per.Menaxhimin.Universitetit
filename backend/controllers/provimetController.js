@@ -1,11 +1,39 @@
 const db = require("../db");
+const {
+  handleDbError,
+  isNonEmptyString,
+  isPositiveInteger,
+  isValidDate,
+  isValidTime,
+  sendValidationError,
+} = require("../utils/validation");
+
+const validateProvimiPayload = (payload) => {
+  const {
+    lende_id,
+    profesor_id,
+    data_provimit,
+    ora,
+    salla,
+    afati,
+  } = payload;
+
+  if (!isPositiveInteger(lende_id)) return "Lenda duhet te zgjidhet sakte.";
+  if (!isPositiveInteger(profesor_id)) return "Profesori duhet te zgjidhet sakte.";
+  if (!isValidDate(data_provimit)) return "Data e provimit nuk eshte valide.";
+  if (!isValidTime(ora)) return "Ora e provimit nuk eshte valide.";
+  if (!isNonEmptyString(salla)) return "Salla eshte e detyrueshme.";
+  if (!isNonEmptyString(afati)) return "Afati eshte i detyrueshem.";
+
+  return null;
+};
 
 const getallprovimet = (req, res) => {
   const sql = "SELECT * FROM provimet";
 
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se provimeve.");
     }
 
     res.json(results);
@@ -18,7 +46,7 @@ const getprovimibyid = (req, res) => {
 
   db.query(sql, [id], (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se provimit.");
     }
 
     if (results.length === 0) {
@@ -30,6 +58,12 @@ const getprovimibyid = (req, res) => {
 };
 
 const createprovimi = (req, res) => {
+  const validationError = validateProvimiPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     lende_id,
     profesor_id,
@@ -50,7 +84,7 @@ const createprovimi = (req, res) => {
     [lende_id, profesor_id, data_provimit, ora, salla, afati],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate shtimit te provimit.");
       }
 
       res.status(201).json({
@@ -63,6 +97,12 @@ const createprovimi = (req, res) => {
 
 const updateprovimi = (req, res) => {
   const { id } = req.params;
+  const validationError = validateProvimiPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     lende_id,
     profesor_id,
@@ -83,7 +123,7 @@ const updateprovimi = (req, res) => {
     [lende_id, profesor_id, data_provimit, ora, salla, afati, id],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate perditesimit te provimit.");
       }
 
       if (result.affectedRows === 0) {
@@ -101,7 +141,7 @@ const deleteprovimi = (req, res) => {
 
   db.query(sql, [id], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate fshirjes se provimit.");
     }
 
     if (result.affectedRows === 0) {
@@ -129,7 +169,7 @@ const getprovimetdetails = (req, res) => {
 
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se detajeve te provimeve.");
     }
 
     res.json(results);

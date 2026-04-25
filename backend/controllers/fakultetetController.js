@@ -1,10 +1,29 @@
 const db = require("../db");
+const {
+  handleDbError,
+  isNonEmptyString,
+  isNullablePositiveInteger,
+  isValidEmail,
+  sendValidationError,
+} = require("../utils/validation");
+
+const validateFakultetiPayload = (payload) => {
+  const { emri, dekani_id, adresa, telefoni, email } = payload;
+
+  if (!isNonEmptyString(emri)) return "Emri eshte i detyrueshem.";
+  if (!isNullablePositiveInteger(dekani_id)) return "Dekani duhet te zgjidhet sakte.";
+  if (!isNonEmptyString(adresa)) return "Adresa eshte e detyrueshme.";
+  if (!isNonEmptyString(telefoni)) return "Telefoni eshte i detyrueshem.";
+  if (!isValidEmail(email)) return "Email nuk eshte valid.";
+
+  return null;
+};
 
 const getAllFakultetet = (req, res) => {
   const sql = "SELECT * FROM fakultetet";
 
   db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate marrjes se fakulteteve.");
     res.json(results);
   });
 };
@@ -15,7 +34,7 @@ const getFakultetiById = (req, res) => {
   const sql = "SELECT * FROM fakultetet WHERE fakultet_id = ?";
 
   db.query(sql, [id], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate marrjes se fakultetit.");
 
     if (results.length === 0) {
       return res.status(404).json({ message: "Fakulteti nuk u gjet" });
@@ -26,11 +45,13 @@ const getFakultetiById = (req, res) => {
 };
 
 const createFakulteti = (req, res) => {
-  const { emri, dekani_id, adresa, telefoni, email } = req.body;
+  const validationError = validateFakultetiPayload(req.body);
 
-  if (!emri || !email) {
-    return res.status(400).json({ message: "Emri dhe email jane te detyrueshme" });
+  if (validationError) {
+    return sendValidationError(res, validationError);
   }
+
+  const { emri, dekani_id, adresa, telefoni, email } = req.body;
 
   const sql = `
     INSERT INTO fakultetet (emri, dekani_id, adresa, telefoni, email)
@@ -38,7 +59,7 @@ const createFakulteti = (req, res) => {
   `;
 
   db.query(sql, [emri, dekani_id, adresa, telefoni, email], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate shtimit te fakultetit.");
 
     res.status(201).json({
       message: "Fakulteti u shtua",
@@ -49,6 +70,12 @@ const createFakulteti = (req, res) => {
 
 const updateFakulteti = (req, res) => {
   const { id } = req.params;
+  const validationError = validateFakultetiPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const { emri, dekani_id, adresa, telefoni, email } = req.body;
 
   const sql = `
@@ -58,7 +85,7 @@ const updateFakulteti = (req, res) => {
   `;
 
   db.query(sql, [emri, dekani_id, adresa, telefoni, email, id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate perditesimit te fakultetit.");
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Fakulteti nuk u gjet" });
@@ -74,7 +101,7 @@ const deleteFakulteti = (req, res) => {
   const sql = "DELETE FROM fakultetet WHERE fakultet_id = ?";
 
   db.query(sql, [id], (err, result) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return handleDbError(res, err, "Gabim gjate fshirjes se fakultetit.");
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Fakulteti nuk u gjet" });

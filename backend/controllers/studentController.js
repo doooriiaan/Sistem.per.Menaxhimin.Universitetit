@@ -1,11 +1,52 @@
 const db = require("../db");
+const {
+  handleDbError,
+  isEnumValue,
+  isNonEmptyString,
+  isPositiveInteger,
+  isValidDate,
+  isValidEmail,
+  sendValidationError,
+} = require("../utils/validation");
+
+const validateStudentPayload = (payload) => {
+  const {
+    emri,
+    mbiemri,
+    numri_personal,
+    data_lindjes,
+    gjinia,
+    email,
+    telefoni,
+    adresa,
+    drejtimi_id,
+    viti_studimit,
+    statusi,
+  } = payload;
+
+  if (!isNonEmptyString(emri)) return "Emri eshte i detyrueshem.";
+  if (!isNonEmptyString(mbiemri)) return "Mbiemri eshte i detyrueshem.";
+  if (!isNonEmptyString(numri_personal)) return "Numri personal eshte i detyrueshem.";
+  if (!isValidDate(data_lindjes)) return "Data e lindjes nuk eshte valide.";
+  if (!isEnumValue(gjinia, ["M", "F"])) return "Gjinia duhet te jete M ose F.";
+  if (!isValidEmail(email)) return "Email nuk eshte valid.";
+  if (!isNonEmptyString(telefoni)) return "Telefoni eshte i detyrueshem.";
+  if (!isNonEmptyString(adresa)) return "Adresa eshte e detyrueshme.";
+  if (!isPositiveInteger(drejtimi_id)) return "Drejtimi duhet te zgjidhet sakte.";
+  if (!isPositiveInteger(viti_studimit) || Number(viti_studimit) > 6) {
+    return "Viti i studimit duhet te jete nga 1 deri ne 6.";
+  }
+  if (!isNonEmptyString(statusi)) return "Statusi eshte i detyrueshem.";
+
+  return null;
+};
 
 const getallstudents = (req, res) => {
   const sql = "SELECT * FROM studentet";
 
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se studenteve.");
     }
 
     res.json(results);
@@ -18,7 +59,7 @@ const getstudentbyid = (req, res) => {
 
   db.query(sql, [id], (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se studentit.");
     }
 
     if (results.length === 0) {
@@ -30,6 +71,12 @@ const getstudentbyid = (req, res) => {
 };
 
 const createstudent = (req, res) => {
+  const validationError = validateStudentPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     emri,
     mbiemri,
@@ -67,7 +114,7 @@ const createstudent = (req, res) => {
     ],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate shtimit te studentit.");
       }
 
       res.status(201).json({
@@ -80,6 +127,12 @@ const createstudent = (req, res) => {
 
 const updatestudent = (req, res) => {
   const { id } = req.params;
+  const validationError = validateStudentPayload(req.body);
+
+  if (validationError) {
+    return sendValidationError(res, validationError);
+  }
+
   const {
     emri,
     mbiemri,
@@ -118,7 +171,7 @@ const updatestudent = (req, res) => {
     ],
     (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        return handleDbError(res, err, "Gabim gjate perditesimit te studentit.");
       }
 
       if (result.affectedRows === 0) {
@@ -136,7 +189,7 @@ const deletestudent = (req, res) => {
 
   db.query(sql, [id], (err, result) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate fshirjes se studentit.");
     }
 
     if (result.affectedRows === 0) {
@@ -164,7 +217,7 @@ const getstudentdetails = (req, res) => {
 
   db.query(sql, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: err.message });
+      return handleDbError(res, err, "Gabim gjate marrjes se detajeve te studenteve.");
     }
 
     res.json(results);
