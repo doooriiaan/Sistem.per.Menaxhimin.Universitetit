@@ -3,6 +3,9 @@ import { useAuth } from "../hooks/useAuth";
 
 const titles = {
   "/": "Dashboard",
+  "/njoftime": "Njoftime",
+  "/raporte": "Raporte",
+  "/ndihme": "Ndihme",
   "/studentet": "Studentet",
   "/profesoret": "Profesoret",
   "/lendet": "Lendet",

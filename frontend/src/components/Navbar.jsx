@@ -3,6 +3,8 @@ import { useAuth } from "../hooks/useAuth";
 
 const adminItems = [
   { path: "/", label: "Dashboard" },
+  { path: "/njoftime", label: "Njoftime" },
+  { path: "/raporte", label: "Raporte" },
   { path: "/studentet", label: "Studentet" },
   { path: "/profesoret", label: "Profesoret" },
   { path: "/lendet", label: "Lendet" },
@@ -13,25 +15,32 @@ const adminItems = [
   { path: "/provimet", label: "Provimet" },
   { path: "/notat", label: "Notat" },
   { path: "/oraret", label: "Oraret" },
+  { path: "/ndihme", label: "Ndihme" },
   { path: "/llogaria", label: "Llogaria" },
 ];
 
 const profesorItems = [
   { path: "/", label: "Dashboard" },
+  { path: "/njoftime", label: "Njoftime" },
+  { path: "/raporte", label: "Raporte" },
   { path: "/profesor/lendet", label: "Lendet e Mia" },
   { path: "/profesor/provimet", label: "Provimet e Mia" },
   { path: "/profesor/notat", label: "Vendos Nota" },
   { path: "/profesor/orari", label: "Orari Im" },
+  { path: "/ndihme", label: "Ndihme" },
   { path: "/llogaria", label: "Llogaria" },
 ];
 
 const studentItems = [
   { path: "/", label: "Dashboard" },
+  { path: "/njoftime", label: "Njoftime" },
+  { path: "/raporte", label: "Raporte" },
   { path: "/student/profili", label: "Profili Im" },
   { path: "/student/notat", label: "Notat e Mia" },
   { path: "/student/regjistrimet", label: "Regjistrimet" },
   { path: "/student/provimet", label: "Provimet" },
   { path: "/student/orari", label: "Orari Im" },
+  { path: "/ndihme", label: "Ndihme" },
   { path: "/llogaria", label: "Llogaria" },
 ];
 

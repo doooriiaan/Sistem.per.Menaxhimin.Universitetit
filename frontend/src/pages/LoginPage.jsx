@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import BackendStatusBanner from "../components/BackendStatusBanner";
+import { useBackendStatus } from "../hooks/useBackendStatus";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
 import {
@@ -16,6 +18,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const backendStatus = useBackendStatus();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -103,6 +106,8 @@ function LoginPage() {
                 Identifikohu per te vazhduar ne sistem.
               </p>
             </div>
+
+            {backendStatus === "offline" && <BackendStatusBanner />}
 
             {error && (
               <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

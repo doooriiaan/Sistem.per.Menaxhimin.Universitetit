@@ -1,12 +1,17 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import BackendStatusBanner from "./components/BackendStatusBanner";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import Topbar from "./components/Topbar";
 import { useAuth } from "./hooks/useAuth";
+import { useBackendStatus } from "./hooks/useBackendStatus";
 import AccountPage from "./pages/AccountPage";
 import Dashboard from "./pages/Dashboard";
+import HelpCenterPage from "./pages/HelpCenterPage";
 import LoginPage from "./pages/LoginPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import RegisterPage from "./pages/RegisterPage";
+import ReportsPage from "./pages/ReportsPage";
 import StudentsPage from "./pages/studentsPage";
 import ProfesoretPage from "./pages/profesoretPage";
 import LendetPage from "./pages/lendetPage";
@@ -28,6 +33,8 @@ import StudentProfilePage from "./pages/StudentProfilePage";
 import StudentSchedulePage from "./pages/StudentSchedulePage";
 
 function AppLayout() {
+  const backendStatus = useBackendStatus();
+
   return (
     <div className="flex min-h-screen bg-slate-100">
       <Navbar />
@@ -36,6 +43,7 @@ function AppLayout() {
         <Topbar />
 
         <div className="p-6">
+          {backendStatus === "offline" && <BackendStatusBanner />}
           <Outlet />
         </div>
       </div>
@@ -62,6 +70,9 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/njoftime" element={<NotificationsPage />} />
+          <Route path="/raporte" element={<ReportsPage />} />
+          <Route path="/ndihme" element={<HelpCenterPage />} />
           <Route path="/llogaria" element={<AccountPage />} />
 
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>

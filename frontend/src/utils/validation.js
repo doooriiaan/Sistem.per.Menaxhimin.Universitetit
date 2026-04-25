@@ -79,10 +79,25 @@ const timeOrder = (startTime, endTime) => {
 
 const runValidators = (...validators) => validators.find(Boolean) || null;
 
-export const getApiErrorMessage = (error, fallbackMessage) =>
-  error?.response?.data?.message ||
-  error?.response?.data?.error ||
-  fallbackMessage;
+export const getApiErrorMessage = (error, fallbackMessage) => {
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+
+  if (error?.response?.data?.error) {
+    return error.response.data.error;
+  }
+
+  if (error?.code === "ECONNABORTED") {
+    return "Backend-i po vonon ose nuk po pergjigjet. Provo perseri pasi ta ndizni serverin.";
+  }
+
+  if (!error?.response && error?.request) {
+    return "Backend-i nuk po pergjigjet. Nise serverin ne portin 5001 dhe rifresko faqen.";
+  }
+
+  return fallbackMessage;
+};
 
 export const validateLoginForm = (form) =>
   runValidators(
