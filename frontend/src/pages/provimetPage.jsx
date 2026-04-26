@@ -3,6 +3,11 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
+import { EXAM_TERM_OPTIONS, withCurrentOption } from "../utils/formOptions";
+import {
   buildLookup,
   formatCourseName,
   formatDateInputValue,
@@ -24,7 +29,7 @@ const emptyForm = {
   data_provimit: "",
   ora: "",
   salla: "",
-  afati: "",
+  afati: EXAM_TERM_OPTIONS[0].value,
 };
 
 function ProvimetPage() {
@@ -80,6 +85,7 @@ function ProvimetPage() {
     (item) => item.afati,
     "Te gjitha afatet"
   );
+  const examTermOptions = withCurrentOption(EXAM_TERM_OPTIONS, form.afati);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -273,13 +279,13 @@ function ProvimetPage() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => openEditModal(item)}
-                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                              className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
                             </button>
                             <button
                               onClick={() => handleDelete(item.provimi_id)}
-                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                              className={DELETE_ACTION_BUTTON_CLASS}
                             >
                               Delete
                             </button>
@@ -404,13 +410,19 @@ function ProvimetPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Afati</p>
-                <input
+                <select
                   name="afati"
                   value={form.afati}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  {examTermOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2 flex justify-end gap-3 pt-2">

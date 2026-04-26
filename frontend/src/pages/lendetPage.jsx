@@ -3,6 +3,15 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
+import {
+  COURSE_TYPE_OPTIONS,
+  SEMESTER_OPTIONS,
+  withCurrentOption,
+} from "../utils/formOptions";
+import {
   buildLookup,
   formatPersonName,
   getDefaultId,
@@ -23,7 +32,7 @@ const emptyForm = {
   semestri: 1,
   drejtimi_id: "",
   profesor_id: "",
-  lloji: "",
+  lloji: COURSE_TYPE_OPTIONS[0].value,
   pershkrimi: "",
 };
 
@@ -80,6 +89,7 @@ function LendetPage() {
     (lenda) => lenda.lloji,
     "Te gjitha llojet"
   );
+  const courseTypeOptions = withCurrentOption(COURSE_TYPE_OPTIONS, form.lloji);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -285,14 +295,14 @@ function LendetPage() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => openEditModal(lenda)}
-                              className="bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
+                              className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
                             </button>
 
                             <button
                               onClick={() => handleDelete(lenda.lende_id)}
-                              className="bg-red-500 text-white font-medium hover:bg-red-600 transition"
+                              className={DELETE_ACTION_BUTTON_CLASS}
                             >
                               Delete
                             </button>
@@ -381,16 +391,19 @@ function LendetPage() {
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Semestri
                 </p>
-                <input
+                <select
                   name="semestri"
-                  type="number"
-                  min="1"
-                  max="12"
                   value={form.semestri}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-slate-400"
                   required
-                />
+                >
+                  {SEMESTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      Semestri {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -438,13 +451,19 @@ function LendetPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Lloji</p>
-                <input
+                <select
                   name="lloji"
                   value={form.lloji}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-slate-400"
                   required
-                />
+                >
+                  {courseTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2">

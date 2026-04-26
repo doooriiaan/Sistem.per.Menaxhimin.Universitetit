@@ -38,7 +38,7 @@ function Topbar() {
     `${user?.emri?.[0] || ""}${user?.mbiemri?.[0] || ""}`.toUpperCase() ||
     "U";
   const fullName =
-    [user?.emri, user?.mbiemri].filter(Boolean).join(" ") || "User";
+    [user?.emri, user?.mbiemri].filter(Boolean).join(" ") || "Perdorues";
 
   const handleLogout = () => {
     logout();
@@ -49,7 +49,9 @@ function Topbar() {
     <header className="sticky top-0 flex h-20 items-center justify-between border-b border-slate-800 bg-slate-900 px-8">
       <div>
         <h2 className="text-xl font-semibold text-white">{pageTitle}</h2>
-        <p className="text-sm text-slate-400">University Management System</p>
+        <p className="text-sm text-slate-400">
+          Sistemi i Menaxhimit te Universitetit
+        </p>
       </div>
 
       <div className="flex items-center gap-4">
@@ -61,7 +63,7 @@ function Topbar() {
           <div className="leading-tight">
             <p className="text-sm font-semibold text-white">{fullName}</p>
             <p className="text-xs text-slate-400">
-              {user?.roli_label || "User"}
+              {user?.roli_label || "Perdorues"}
             </p>
           </div>
 
@@ -70,7 +72,7 @@ function Topbar() {
             onClick={handleLogout}
             className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-600"
           >
-            Logout
+            Dil
           </button>
         </div>
       </div>

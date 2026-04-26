@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
+import { formatDateLabel, formatTimeLabel } from "../utils/display";
 import { getApiErrorMessage } from "../utils/validation";
 
 const adminCards = [
@@ -12,29 +13,7 @@ const adminCards = [
   { key: "regjistrimet", label: "Regjistrimet", path: "/regjistrimet" },
 ];
 
-const emptyDashboard = {
-  role: "",
-};
-
-const formatDate = (value) => {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("sq-AL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-};
-
-const formatTime = (value) => {
-  if (!value) {
-    return "-";
-  }
-
-  return String(value).slice(0, 5);
-};
+const emptyDashboard = {};
 
 function EmptyState({ message }) {
   return (
@@ -107,7 +86,7 @@ function Dashboard() {
       <div className="space-y-6">
         <div className="rounded-3xl bg-slate-900 p-8 text-white text-center">
           <p className="text-sm uppercase tracking-[0.25em] text-slate-400">
-            Admin Dashboard
+            Paneli i administratorit
           </p>
           <h2 className="mt-3 text-4xl font-bold text-slate-100">Kontroll i plote i sistemit</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 text-center mx-auto">
@@ -279,7 +258,7 @@ function Dashboard() {
                   >
                     <p className="font-semibold text-slate-900">{exam.lenda}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {formatDate(exam.data_provimit)} | {formatTime(exam.ora)} |
+                      {formatDateLabel(exam.data_provimit)} | {formatTimeLabel(exam.ora)} |
                       {" "}
                       {exam.salla} | {exam.afati}
                     </p>
@@ -313,8 +292,8 @@ function Dashboard() {
                       <td className="py-3 text-slate-900">{item.lenda}</td>
                       <td className="py-3 text-slate-600">{item.dita}</td>
                       <td className="py-3 text-slate-600">
-                        {formatTime(item.ora_fillimit)} -{" "}
-                        {formatTime(item.ora_mbarimit)}
+                        {formatTimeLabel(item.ora_fillimit)} -{" "}
+                        {formatTimeLabel(item.ora_mbarimit)}
                       </td>
                       <td className="py-3 text-slate-600">{item.salla}</td>
                     </tr>
@@ -374,9 +353,9 @@ function Dashboard() {
         </SectionCard>
 
         <div className="grid gap-4">
-          <div className="rounded-3xl bg-white p-5 text-white">
+          <div className="rounded-3xl bg-slate-900 p-5 text-white shadow-sm">
             <p className="text-sm text-slate-400">Notat e fundit</p>
-            <h3 className="mt-3 text-3xl font-bold">
+            <h3 className="mt-3 text-3xl font-bold text-slate-100">
               {dashboard.grades?.length ?? 0}
             </h3>
           </div>
@@ -410,7 +389,7 @@ function Dashboard() {
                   <div>
                     <p className="font-semibold text-slate-900">{grade.lenda}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {grade.profesori || "-"} | {formatDate(grade.data_vendosjes)}
+                      {grade.profesori || "-"} | {formatDateLabel(grade.data_vendosjes)}
                     </p>
                   </div>
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
@@ -472,7 +451,7 @@ function Dashboard() {
                 >
                   <p className="font-semibold text-slate-900">{exam.lenda}</p>
                   <p className="mt-1 text-sm text-slate-500">
-                    {formatDate(exam.data_provimit)} | {formatTime(exam.ora)} |{" "}
+                    {formatDateLabel(exam.data_provimit)} | {formatTimeLabel(exam.ora)} |{" "}
                     {exam.salla} | {exam.afati}
                   </p>
                 </div>
@@ -504,8 +483,8 @@ function Dashboard() {
                       <td className="py-3 text-slate-900">{item.lenda}</td>
                       <td className="py-3 text-slate-600">{item.dita}</td>
                       <td className="py-3 text-slate-600">
-                        {formatTime(item.ora_fillimit)} -{" "}
-                        {formatTime(item.ora_mbarimit)}
+                        {formatTimeLabel(item.ora_fillimit)} -{" "}
+                        {formatTimeLabel(item.ora_mbarimit)}
                       </td>
                       <td className="py-3 text-slate-600">{item.salla}</td>
                     </tr>

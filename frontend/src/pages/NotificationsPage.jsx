@@ -2,20 +2,20 @@ const notices = [
   {
     id: 1,
     tag: "Akademik",
-    title: "Afati i regjistrimeve mbetet i hapur deri të premten",
-    text: "Studentët mund të përfundojnë regjistrimet aktive deri në fund të javës pa penalizime shtesë.",
+    title: "Afati i regjistrimeve mbetet i hapur deri te premten",
+    text: "Studentet mund te perfundojne regjistrimet aktive deri ne fund te javes pa penalizime shtese.",
   },
   {
     id: 2,
     tag: "Provime",
-    title: "Orari i sesionit të ardhshëm është publikuar",
-    text: "Profesorët dhe studentët mund të verifikojnë sallat, datat dhe oraret nga modulet përkatëse.",
+    title: "Orari i sesionit te ardhshem eshte publikuar",
+    text: "Profesoret dhe studentet mund te verifikojne sallat, datat dhe oraret nga modulet perkatese.",
   },
   {
     id: 3,
     tag: "Sistem",
-    title: "Paneli i ri i menaxhimit është optimizuar",
-    text: "Navigimi, kartat informative dhe pamja e përgjithshme tani janë më të qarta për përdorim ditor.",
+    title: "Paneli i ri i menaxhimit eshte optimizuar",
+    text: "Navigimi, kartat informative dhe pamja e pergjithshme tani jane me te qarta per perdorim ditor.",
   },
 ];
 
@@ -29,15 +29,15 @@ function NotificationsPage() {
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-3xl font-extrabold text-slate-900">
-              Qendra e komunikimeve të universitetit
+              Qendra e komunikimeve te universitetit
             </h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              Këtu mund të shfaqen njoftimet më të rëndësishme për afate,
-              ndryshime orari dhe përditësime të sistemit.
+              Ketu mund te shfaqen njoftimet me te rendesishme per afate,
+              ndryshime orari dhe perditesime te sistemit.
             </p>
           </div>
           <div className="rounded-2xl bg-white/80 px-5 py-4 text-sm text-slate-600 shadow-sm">
-            3 njoftime aktive këtë javë
+            3 njoftime aktive kete jave
           </div>
         </div>
       </section>

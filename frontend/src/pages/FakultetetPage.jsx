@@ -3,6 +3,10 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
+import {
   buildLookup,
   formatPersonName,
   getLabelById,
@@ -262,14 +266,14 @@ function FakultetetPage() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => openEditModal(fakulteti)}
-                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                              className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
                             </button>
 
                             <button
                               onClick={() => handleDelete(fakulteti.fakultet_id)}
-                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                              className={DELETE_ACTION_BUTTON_CLASS}
                             >
                               Delete
                             </button>

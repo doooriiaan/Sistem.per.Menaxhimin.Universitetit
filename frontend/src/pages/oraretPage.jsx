@@ -3,6 +3,11 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
+import { DAY_OPTIONS, withCurrentOption } from "../utils/formOptions";
+import {
   buildLookup,
   formatCourseName,
   formatPersonName,
@@ -20,7 +25,7 @@ import { getApiErrorMessage, validateOrariForm } from "../utils/validation";
 const emptyForm = {
   lende_id: "",
   profesor_id: "",
-  dita: "",
+  dita: DAY_OPTIONS[0].value,
   ora_fillimit: "",
   ora_mbarimit: "",
   salla: "",
@@ -75,6 +80,7 @@ function OraretPage() {
     (item) => item.dita,
     "Te gjitha ditet"
   );
+  const dayOptions = withCurrentOption(DAY_OPTIONS, form.dita);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -266,13 +272,13 @@ function OraretPage() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => openEditModal(item)}
-                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                              className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
                             </button>
                             <button
                               onClick={() => handleDelete(item.orari_id)}
-                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                              className={DELETE_ACTION_BUTTON_CLASS}
                             >
                               Delete
                             </button>
@@ -360,13 +366,19 @@ function OraretPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Dita</p>
-                <input
+                <select
                   name="dita"
                   value={form.dita}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  {dayOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

@@ -3,6 +3,16 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
+import {
+  REGISTRATION_STATUS_OPTIONS,
+  SEMESTER_OPTIONS,
+  buildAcademicYearOptions,
+  withCurrentOption,
+} from "../utils/formOptions";
+import {
   buildLookup,
   formatCourseName,
   formatPersonName,
@@ -20,12 +30,14 @@ import {
   validateRegjistrimiForm,
 } from "../utils/validation";
 
+const defaultAcademicYearOptions = buildAcademicYearOptions();
+
 const emptyForm = {
   student_id: "",
   lende_id: "",
-  semestri: "",
-  viti_akademik: "",
-  statusi: "",
+  semestri: 1,
+  viti_akademik: defaultAcademicYearOptions[0]?.value || "",
+  statusi: REGISTRATION_STATUS_OPTIONS[0].value,
 };
 
 function RegjistrimetPage() {
@@ -74,6 +86,14 @@ function RegjistrimetPage() {
     (item) => item.statusi,
     (item) => item.statusi,
     "Te gjitha statuset"
+  );
+  const registrationStatusOptions = withCurrentOption(
+    REGISTRATION_STATUS_OPTIONS,
+    form.statusi
+  );
+  const academicYearOptions = withCurrentOption(
+    defaultAcademicYearOptions,
+    form.viti_akademik
   );
 
   useEffect(() => {
@@ -264,13 +284,13 @@ function RegjistrimetPage() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => openEditModal(item)}
-                              className="bg-blue-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-blue-600 transition"
+                              className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
                             </button>
                             <button
                               onClick={() => handleDelete(item.regjistrimi_id)}
-                              className="bg-red-500 text-white font-medium px-3 py-1 rounded-lg hover:bg-red-600 transition"
+                              className={DELETE_ACTION_BUTTON_CLASS}
                             >
                               Delete
                             </button>
@@ -358,40 +378,55 @@ function RegjistrimetPage() {
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Semestri
                 </p>
-                <input
+                <select
                   name="semestri"
-                  type="number"
-                  min="1"
-                  max="12"
                   value={form.semestri}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  {SEMESTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      Semestri {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Viti Akademik
                 </p>
-                <input
+                <select
                   name="viti_akademik"
                   value={form.viti_akademik}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  {academicYearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2">
                 <p className="text-sm font-medium text-slate-700 mb-1">Statusi</p>
-                <input
+                <select
                   name="statusi"
                   value={form.statusi}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  {registrationStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2 flex justify-end gap-3 pt-2">

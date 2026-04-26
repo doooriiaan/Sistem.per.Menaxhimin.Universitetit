@@ -43,7 +43,7 @@ function ReportsPage() {
         }
       } catch (err) {
         if (active) {
-          setError(getApiErrorMessage(err, "Gabim gjatë marrjes së raporteve."));
+          setError(getApiErrorMessage(err, "Gabim gjate marrjes se raporteve."));
         }
       } finally {
         if (active) {
@@ -62,14 +62,14 @@ function ReportsPage() {
   const metrics =
     user?.roli === "admin"
       ? [
-          { label: "Studentë", value: dashboard.counts?.students ?? 0, tone: "teal" },
-          { label: "Profesorë", value: dashboard.counts?.profesoret ?? 0 },
-          { label: "Lëndë", value: dashboard.counts?.lendet ?? 0 },
+          { label: "Studente", value: dashboard.counts?.students ?? 0, tone: "teal" },
+          { label: "Profesore", value: dashboard.counts?.profesoret ?? 0 },
+          { label: "Lende", value: dashboard.counts?.lendet ?? 0 },
           { label: "Provime", value: dashboard.counts?.provimet ?? 0, tone: "amber" },
         ]
       : user?.roli === "profesor"
         ? [
-            { label: "Lëndët e mia", value: dashboard.courses?.length ?? 0, tone: "teal" },
+            { label: "Lendet e mia", value: dashboard.courses?.length ?? 0, tone: "teal" },
             { label: "Provimet", value: dashboard.exams?.length ?? 0 },
             { label: "Orari javor", value: dashboard.schedule?.length ?? 0, tone: "amber" },
           ]
@@ -87,11 +87,11 @@ function ReportsPage() {
           Raporte
         </p>
         <h1 className="mt-4 text-3xl font-extrabold text-slate-900">
-          Pamje e shpejtë mbi performancën dhe aktivitetin
+          Pamje e shpejte mbi performancen dhe aktivitetin
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-          Kjo faqe përmbledh treguesit kryesorë të rolit tënd që t’i kesh
-          statistikat më të rëndësishme në një vend.
+          Kjo faqe permbledh treguesit kryesore te rolit tend qe t'i kesh
+          statistikat me te rendesishme ne nje vend.
         </p>
       </section>
 
@@ -119,11 +119,11 @@ function ReportsPage() {
           <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="surface-card rounded-[24px] p-6">
               <h2 className="text-lg font-bold text-slate-900">
-                Përmbledhje operative
+                Permbledhje operative
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Paneli i raporteve është ndërtuar që të japë një pamje të qartë
-                për vendimmarrje të shpejtë. Mund të zgjerohet më tej me grafe,
+                Paneli i raporteve eshte ndertuar qe te jape nje pamje te qarte
+                per vendimmarrje te shpejte. Mund te zgjerohet me tej me grafe,
                 eksport PDF ose krahasime mujore.
               </p>
             </div>
@@ -132,10 +132,12 @@ function ReportsPage() {
               <p className="text-sm uppercase tracking-[0.24em] text-slate-400">
                 Status
               </p>
-              <h2 className="mt-4 text-2xl font-bold">Sistemi është gati për raportim</h2>
+              <h2 className="mt-4 text-2xl font-bold">
+                Sistemi eshte gati per raportim
+              </h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                Kjo faqe mund të shërbejë si bazë për analytics më të avancuara
-                sipas kërkesave të fakultetit ose administratës.
+                Kjo faqe mund te sherbeje si baze per analytics me te avancuara
+                sipas kerkesave te fakultetit ose administrates.
               </p>
             </div>
           </section>

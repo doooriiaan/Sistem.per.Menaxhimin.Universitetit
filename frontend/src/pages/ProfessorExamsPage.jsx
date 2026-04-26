@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import {
+  DELETE_ACTION_BUTTON_CLASS,
+  EDIT_ACTION_BUTTON_CLASS,
+} from "../utils/buttonStyles";
 import { formatDateLabel, formatTimeLabel } from "../utils/display";
 import {
   getApiErrorMessage,
@@ -179,14 +183,14 @@ function ProfessorExamsPage() {
                       <button
                         type="button"
                         onClick={() => openEditModal(exam)}
-                        className="rounded-lg bg-blue-500 px-3 py-1 text-white transition hover:bg-blue-600"
+                        className={EDIT_ACTION_BUTTON_CLASS}
                       >
                         Update
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(exam.provimi_id)}
-                        className="rounded-lg bg-red-500 px-3 py-1 text-white transition hover:bg-red-600"
+                        className={DELETE_ACTION_BUTTON_CLASS}
                       >
                         Delete
                       </button>

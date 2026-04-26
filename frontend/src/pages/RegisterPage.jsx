@@ -73,7 +73,7 @@ function RegisterPage() {
         <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-10 text-white lg:flex">
           <div>
             <p className="mb-4 text-sm uppercase tracking-[0.35em] text-slate-400">
-              Account Activation
+              Aktivizimi i llogarise
             </p>
             <h1 className="mb-4 text-4xl font-bold leading-tight text-slate-200">
               Regjistrohu si student ose profesor.
@@ -99,7 +99,7 @@ function RegisterPage() {
           <div className="w-full max-w-md">
             <div className="mb-8">
               <p className="text-md font-semibold uppercase tracking-[0.25em] text-slate-800 text-center">
-                Register
+                Regjistrim
               </p>
               
               <p className="mt-2 text-sm leading-6 text-slate-500 text-center">
@@ -188,7 +188,7 @@ function RegisterPage() {
                 to="/login"
                 className="ml-2 font-semibold text-slate-900 underline underline-offset-4"
               >
-                Kthehu te login
+                Kthehu te hyrja
               </Link>
             </p>
           </div>

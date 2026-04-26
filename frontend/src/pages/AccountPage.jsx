@@ -95,7 +95,7 @@ function AccountPage() {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm uppercase tracking-[0.25em] text-slate-500">
-          Security
+          Siguria
         </p>
         <h2 className="mt-3 text-2xl font-bold text-slate-900">
           Ndrysho fjalekalimin

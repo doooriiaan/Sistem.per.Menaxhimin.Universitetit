@@ -134,9 +134,9 @@ function StudentProfilePage() {
         </p>
 
         <div className="mt-6 grid gap-4">
-          <div className="rounded-2xl bg-slate-100 p-5 text-white">
+          <div className="rounded-2xl bg-slate-900 p-5 text-white">
             <p className="text-sm text-slate-400">Mesatarja</p>
-            <h3 className="mt-3 text-4xl font-bold">
+            <h3 className="mt-3 text-4xl font-bold text-slate-100">
               {formatAverageLabel(data.summary?.mesatarja)}
             </h3>
           </div>

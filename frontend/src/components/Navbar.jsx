@@ -71,15 +71,15 @@ function Navbar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 overflow-y-auto bg-slate-900 px-4 py-6">
       <h1 className="mb-8 text-xl font-bold text-white">
-        University Management System
+        Sistemi i Menaxhimit te Universitetit
       </h1>
 
       <div className="mb-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
         <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-          Role
+          Roli
         </p>
         <p className="mt-2 text-sm font-semibold text-white">
-          {user?.roli_label || "User"}
+          {user?.roli_label || "Perdorues"}
         </p>
         <p className="mt-1 text-xs leading-5 text-slate-400">
           {roleDescriptions[user?.roli] || "Qasje e kufizuar sipas rolit."}
