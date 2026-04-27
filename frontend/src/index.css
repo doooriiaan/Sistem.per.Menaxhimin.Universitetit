@@ -69,7 +69,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: linear-gradient(180deg, #f8fbfd 0%, var(--bg-base) 100%);
+  background: linear-gradient(180deg, #f8fbfd 0%, #eef4f9 48%, #e8eff6 100%);
   color: var(--text-main);
   font-family: "Plus Jakarta Sans", sans-serif;
   text-rendering: optimizeLegibility;
@@ -88,18 +88,18 @@ body::after {
 
 body::before {
   background:
-    radial-gradient(circle at 12% 18%, rgba(20, 184, 166, 0.18), transparent 28%),
-    radial-gradient(circle at 82% 14%, rgba(249, 115, 22, 0.16), transparent 22%),
-    radial-gradient(circle at 72% 72%, rgba(14, 165, 233, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(237, 243, 248, 0.96));
+    radial-gradient(circle at 14% 18%, rgba(15, 118, 110, 0.16), transparent 26%),
+    radial-gradient(circle at 86% 12%, rgba(249, 115, 22, 0.14), transparent 20%),
+    radial-gradient(circle at 72% 72%, rgba(56, 189, 248, 0.11), transparent 24%),
+    linear-gradient(140deg, rgba(255, 255, 255, 0.96), rgba(237, 243, 248, 0.98));
 }
 
 body::after {
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 92%);
+    linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 92%);
   z-index: -1;
 }
 
@@ -145,9 +145,14 @@ button {
 .app-shell {
   position: relative;
   display: flex;
+  isolation: isolate;
 }
 
 .app-backdrop {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(15, 23, 42, 0.18), transparent 30%),
+    radial-gradient(circle at 82% 10%, rgba(249, 115, 22, 0.09), transparent 18%),
+    radial-gradient(circle at 74% 68%, rgba(56, 189, 248, 0.08), transparent 24%);
   inset: 0;
   overflow: hidden;
   pointer-events: none;
@@ -155,38 +160,66 @@ button {
   z-index: 0;
 }
 
+.app-sidewash {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.28) 0%,
+      rgba(15, 23, 42, 0.16) 22%,
+      rgba(15, 23, 42, 0) 42%
+    ),
+    radial-gradient(circle at 16% 24%, rgba(45, 212, 191, 0.14), transparent 24%);
+  inset: 0;
+  position: absolute;
+}
+
 .app-orb {
   border-radius: 999px;
-  filter: blur(10px);
+  filter: blur(14px);
+  opacity: 0.95;
   position: absolute;
   will-change: transform;
 }
 
 .app-orb-primary {
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.2), transparent 70%);
-  height: 28rem;
-  left: -8rem;
-  top: 6rem;
-  width: 28rem;
+  background: radial-gradient(
+    circle,
+    rgba(45, 212, 191, 0.28) 0%,
+    rgba(15, 118, 110, 0.08) 34%,
+    transparent 72%
+  );
+  height: 30rem;
+  left: -7rem;
+  top: 5rem;
+  width: 30rem;
   animation: float-orb 12s ease-in-out infinite;
 }
 
 .app-orb-secondary {
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.16), transparent 68%);
-  height: 22rem;
-  right: 4rem;
-  top: 2rem;
-  width: 22rem;
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.22), transparent 70%);
+  height: 24rem;
+  right: 3rem;
+  top: 1.5rem;
+  width: 24rem;
   animation: float-orb 15s ease-in-out infinite reverse;
+}
+
+.app-orb-tertiary {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.2), transparent 72%);
+  bottom: 4rem;
+  height: 20rem;
+  left: 40%;
+  width: 20rem;
+  animation: float-orb 18s ease-in-out infinite;
 }
 
 .app-grid {
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
   inset: 0;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.16), transparent 84%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 84%);
   position: absolute;
   animation: pulse-grid 10s ease-in-out infinite;
 }
@@ -194,9 +227,11 @@ button {
 .app-chrome {
   backdrop-filter: blur(22px);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.62));
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  box-shadow: var(--shadow-glow);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    0 42px 110px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.66);
   position: relative;
   z-index: 1;
 }

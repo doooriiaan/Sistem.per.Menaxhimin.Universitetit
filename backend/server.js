@@ -21,6 +21,7 @@ const bursatRoutes = require("./routes/bursatRoutes");
 const praktikatRoutes = require("./routes/praktikatRoutes");
 const erasmusRoutes = require("./routes/erasmusRoutes");
 const oraretRoutes = require("./routes/oraretRoutes");
+const njoftimetRoutes = require("./routes/njoftimetRoutes");
 const profesorPortalRoutes = require("./routes/profesorPortalRoutes");
 const studentPortalRoutes = require("./routes/studentPortalRoutes");
 const {
@@ -54,6 +55,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/njoftime", authenticateToken, njoftimetRoutes);
 app.use(
   "/api/studentet",
   authenticateToken,

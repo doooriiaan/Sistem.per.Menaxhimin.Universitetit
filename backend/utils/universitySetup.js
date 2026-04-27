@@ -347,6 +347,23 @@ const ensureErasmusTables = async () => {
   `);
 };
 
+const ensureNotificationsTable = async () => {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS njoftimet (
+      njoftim_id INT AUTO_INCREMENT PRIMARY KEY,
+      tag VARCHAR(80) NOT NULL,
+      titulli VARCHAR(180) NOT NULL,
+      pershkrimi TEXT NOT NULL,
+      created_by_user_id INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+    )
+  `);
+};
+
 const getCurrentAcademicStartYear = () => {
   const today = new Date();
   return today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
@@ -626,6 +643,37 @@ const seedErasmusPrograms = async () => {
   );
 };
 
+const seedNotifications = async () => {
+  const [[{ total }]] = await connection.query(
+    "SELECT COUNT(*) AS total FROM njoftimet"
+  );
+
+  if (total > 0) {
+    return;
+  }
+
+  await connection.query(
+    `
+      INSERT INTO njoftimet (tag, titulli, pershkrimi)
+      VALUES
+        (?, ?, ?),
+        (?, ?, ?),
+        (?, ?, ?)
+    `,
+    [
+      "Akademik",
+      "Afati i regjistrimeve mbetet i hapur deri te premten",
+      "Studentet mund te perfundojne regjistrimet aktive deri ne fund te javes pa penalizime shtese.",
+      "Provime",
+      "Orari i sesionit te ardhshem eshte publikuar",
+      "Profesoret dhe studentet mund te verifikojne sallat, datat dhe oraret nga modulet perkatese.",
+      "Sistem",
+      "Paneli i ri i menaxhimit eshte optimizuar",
+      "Navigimi, kartat informative dhe pamja e pergjithshme tani jane me te qarta per perdorim ditor.",
+    ]
+  );
+};
+
 const ensureUniversitySetup = async () => {
   ensureDirectory(UPLOADS_ROOT);
   await ensureGenerationsTable();
@@ -636,12 +684,14 @@ const ensureUniversitySetup = async () => {
   await ensureScholarshipTables();
   await ensureInternshipsTables();
   await ensureErasmusTables();
+  await ensureNotificationsTable();
   await seedGenerations();
   await assignStudentsToGenerations();
   await seedServices();
   await seedScholarships();
   await seedInternships();
   await seedErasmusPrograms();
+  await seedNotifications();
 };
 
 module.exports = {

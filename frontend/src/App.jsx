@@ -74,8 +74,10 @@ function AppLayout() {
   return (
     <div className="app-shell min-h-screen">
       <div aria-hidden="true" className="app-backdrop">
+        <span className="app-sidewash" />
         <span className="app-orb app-orb-primary" />
         <span className="app-orb app-orb-secondary" />
+        <span className="app-orb app-orb-tertiary" />
         <span className="app-grid" />
       </div>
 
@@ -84,9 +86,11 @@ function AppLayout() {
         onClose={() => setIsMobileNavOpen(false)}
       />
 
-      <div className="flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:ml-64 lg:px-6 lg:py-6">
+      <div className="flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:ml-[18.5rem] lg:px-6 lg:py-6">
         <div className="app-chrome min-h-[calc(100vh-1.5rem)] overflow-hidden rounded-[28px] sm:min-h-[calc(100vh-2rem)] sm:rounded-[30px] lg:min-h-[calc(100vh-3rem)] lg:rounded-[34px]">
-          <Topbar onMenuToggle={() => setIsMobileNavOpen((current) => !current)} />
+          <Topbar
+            onMenuToggle={() => setIsMobileNavOpen((current) => !current)}
+          />
 
           <main className="page-stage p-4 sm:p-5 lg:p-8">
             {backendStatus === "offline" && <BackendStatusBanner />}

@@ -1,82 +1,47 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import NavigationIcon from "./NavigationIcon";
 import { useAuth } from "../hooks/useAuth";
+import {
+  getNavigationGroups,
+  isGroupActive,
+  isPathActive,
+  roleDescriptions,
+} from "../utils/navigation";
 
-const adminItems = [
-  { path: "/", label: "Dashboard" },
-  { path: "/studentet", label: "Studentet" },
-  { path: "/profesoret", label: "Profesoret" },
-  { path: "/gjeneratat", label: "Gjeneratat" },
-  { path: "/lendet", label: "Lendet" },
-  { path: "/regjistrimet", label: "Regjistrimet" },
-  { path: "/sherbimet", label: "Sherbimet" },
-  { path: "/rindjekjet", label: "Rindjekje" },
-  { path: "/bursat", label: "Bursat" },
-  { path: "/praktikat", label: "Internships" },
-  { path: "/erasmus", label: "Erasmus" },
-  { path: "/provimet", label: "Provimet" },
-  { path: "/notat", label: "Notat" },
-  { path: "/oraret", label: "Oraret" },
-  { path: "/drejtimet", label: "Drejtimet" },
-  { path: "/fakultetet", label: "Fakultetet" },
-  { path: "/departamentet", label: "Departamentet" },
-  { path: "/njoftime", label: "Njoftime" },
-  { path: "/raporte", label: "Raporte" },
-  { path: "/ndihme", label: "Ndihme" },
-  { path: "/llogaria", label: "Llogaria" },
-];
+function buildOpenSections(groups, pathname, overrides = {}) {
+  const nextState = {};
 
-const profesorItems = [
-  { path: "/", label: "Dashboard" },
-  { path: "/profesor/lendet", label: "Lendet e Mia" },
-  { path: "/profesor/provimet", label: "Provimet e Mia" },
-  { path: "/profesor/notat", label: "Vendos Nota" },
-  { path: "/profesor/orari", label: "Orari Im" },
-  { path: "/njoftime", label: "Njoftime" },
-  { path: "/raporte", label: "Raporte" },
-  { path: "/ndihme", label: "Ndihme" },
-  { path: "/llogaria", label: "Llogaria" },
-];
+  groups.forEach((group, index) => {
+    const overrideValue = overrides[group.id];
+    const hasActiveItem = isGroupActive(pathname, group);
 
-const studentItems = [
-  { path: "/", label: "Dashboard" },
-  { path: "/student/profili", label: "Profili Im" },
-  { path: "/student/regjistrimet", label: "Regjistrimet" },
-  { path: "/student/sherbimet", label: "Sherbimet" },
-  { path: "/student/rindjekjet", label: "Rindjekje" },
-  { path: "/student/bursat", label: "Bursat" },
-  { path: "/student/praktikat", label: "Internships" },
-  { path: "/student/erasmus", label: "Erasmus" },
-  { path: "/student/notat", label: "Notat e Mia" },
-  { path: "/student/provimet", label: "Provimet" },
-  { path: "/student/orari", label: "Orari Im" },
-  { path: "/njoftime", label: "Njoftime" },
-  { path: "/raporte", label: "Raporte" },
-  { path: "/ndihme", label: "Ndihme" },
-  { path: "/llogaria", label: "Llogaria" },
-];
+    nextState[group.id] =
+      hasActiveItem || typeof overrideValue === "boolean"
+        ? hasActiveItem || overrideValue
+        : index === 0;
+  });
 
-const roleDescriptions = {
-  admin: "Menaxhon databazen, pagesat, gjeneratat dhe aplikimet akademike.",
-  profesor: "Sheh lendet, provimet, orarin dhe procesin e vleresimit.",
-  student: "Menaxhon progresin, sherbimet, aplikimet dhe dokumentet personale.",
-};
+  return nextState;
+}
 
 function Navbar({ isMobileOpen = false, onClose = () => {} }) {
   const location = useLocation();
   const { user } = useAuth();
 
-  const items =
-    user?.roli === "admin"
-      ? adminItems
-      : user?.roli === "profesor"
-        ? profesorItems
-        : studentItems;
+  const groups = getNavigationGroups(user?.roli);
+  const [sectionOverrides, setSectionOverrides] = useState({});
+  const openSections = buildOpenSections(
+    groups,
+    location.pathname,
+    sectionOverrides
+  );
 
   const linkClass = (path) =>
     `group flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
-      location.pathname === path
-        ? "border-white bg-white text-slate-950 shadow-lg shadow-slate-950/18"
-        : "border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
+      isPathActive(location.pathname, path)
+        ? "border-white/[0.08] bg-white/[0.1] text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+        : "border-white/[0.03] bg-white/[0.02] text-slate-200/85 hover:border-white/[0.06] hover:bg-white/[0.05] hover:text-white"
     }`;
 
   return (
@@ -97,64 +62,133 @@ function Navbar({ isMobileOpen = false, onClose = () => {} }) {
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-slate-800/70 bg-slate-900 shadow-[0_34px_90px_rgba(2,6,23,0.45)]">
-          <div className="border-b border-white/10 px-5 pb-5 pt-5">
+        <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-slate-800/60 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.1),transparent_28%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.93))] shadow-[0_34px_90px_rgba(2,6,23,0.45)]">
+          <div className="border-b border-white/[0.06] px-5 pb-5 pt-5">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.34em] text-blue-400">
-                  UMS Portal
+              <div className="text-center ">
+                <p className="text-[11px] font-bold uppercase tracking-[0.34em] text-cyan-300/90">
+                  UMS SIDEBAR
                 </p>
-                <h1 className="mt-3 text-xl font-extrabold leading-tight text-white">
-                  Sistemi i Menaxhimit te Universitetit
+                <h1 className="mt-3 ml-3.5 text-lg font-extrabold leading-tight text-white">
+                  Qendra e menaxhimit
                 </h1>
-                <p className="mt-3 text-sm leading-6 text-gray-100">
-                  Platforme e avancuar per administrate, studente dhe profesore.
-                </p>
+               
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/20 lg:hidden"
-              >
-                Mbyll
-              </button>
             </div>
           </div>
 
           <div className="px-5 py-4">
-            <div className="rounded-[24px] border border-blue-400 bg-blue-950 p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-blue-200">
-                Roli aktiv
-              </p>
-              <p className="mt-3 text-base font-bold text-white">
+            <div className="rounded-[24px] border border-cyan-400/10 bg-cyan-400/[0.07] p-4 shadow-inner shadow-cyan-950/20">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-100/85">
+                  Roli aktiv
+                </p>
+                <span className="rounded-full border border-white/[0.08] bg-slate-950/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/85">
+                  Aktiv
+                </span>
+              </div>
+              <p className="text-center text-[25px] pb-3 mt-3 text-base font-bold text-white">
                 {user?.roli_label || "Perdorues"}
               </p>
-              <p className="mt-2 text-sm leading-6 text-blue-100">
-                {roleDescriptions[user?.roli] || "Qasje e kufizuar sipas rolit."}
-              </p>
+              
             </div>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5">
-            <nav className="space-y-2">
-              {items.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={linkClass(item.path)}
-                >
-                  <span>{item.label}</span>
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full transition ${
-                      location.pathname === item.path
-                        ? "bg-teal-500"
-                        : "bg-slate-700 group-hover:bg-slate-500"
+            <nav className="space-y-3">
+              {groups.map((group) => {
+                const isOpen = openSections[group.id];
+                const isActive = isGroupActive(location.pathname, group);
+
+                return (
+                  <section
+                    key={group.id}
+                    className={`overflow-hidden rounded-[26px] border transition-all duration-200 ${
+                      isActive
+                        ? "border-white/[0.07] bg-white/[0.05] shadow-[0_18px_42px_rgba(15,23,42,0.18)]"
+                        : "border-white/[0.03] bg-white/[0.02]"
                     }`}
-                  />
-                </Link>
-              ))}
+                  >
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={() =>
+                        setSectionOverrides((current) => ({
+                          ...current,
+                          [group.id]: !openSections[group.id],
+                        }))
+                      }
+                      className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div
+                          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border ${
+                            isActive
+                              ? "border-cyan-300/20 bg-cyan-400/10 text-cyan-100"
+                              : "border-white/[0.05] bg-white/[0.04] text-slate-300"
+                          }`}
+                        >
+                          <NavigationIcon icon={group.icon} className="h-5 w-5" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white">
+                            {group.label}
+                          </p>
+                          
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2 pt-1">
+                        <span className="rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                          {group.items.length}
+                        </span>
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="none"
+                          aria-hidden="true"
+                          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+                            isOpen ? "rotate-180" : ""
+                          }`}
+                        >
+                          <path
+                            d="M5 7.5 10 12.5 15 7.5"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {isOpen ? (
+                      <div className="px-3 pb-3">
+                        <div className="space-y-2 border-t border-white/[0.04] pt-3">
+                          {group.items.map((item) => (
+                            <Link
+                              key={item.path}
+                              to={item.path}
+                              onClick={onClose}
+                              className={linkClass(item.path)}
+                            >
+                              <span>{item.label}</span>
+                              <span
+                                className={`h-2.5 w-2.5 rounded-full transition ${
+                                  isPathActive(location.pathname, item.path)
+                                    ? "bg-cyan-400 shadow-[0_0_18px_rgba(34,211,238,0.4)]"
+                                    : "bg-slate-700 group-hover:bg-slate-500"
+                                }`}
+                              />
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
             </nav>
           </div>
         </div>

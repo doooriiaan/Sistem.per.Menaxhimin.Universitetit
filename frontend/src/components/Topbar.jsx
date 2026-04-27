@@ -1,5 +1,7 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import NavigationIcon from "./NavigationIcon";
 import { useAuth } from "../hooks/useAuth";
+import { getUtilityItems, isPathActive } from "../utils/navigation";
 
 const titles = {
   "/": "Dashboard",
@@ -44,6 +46,7 @@ function Topbar({ onMenuToggle = () => {} }) {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
 
+  const utilityItems = getUtilityItems();
   const pageTitle = titles[location.pathname] || "Dashboard";
   const initials =
     `${user?.emri?.[0] || ""}${user?.mbiemri?.[0] || ""}`.toUpperCase() ||
@@ -57,8 +60,8 @@ function Topbar({ onMenuToggle = () => {} }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/82 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-8">
-      <div className="flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/82 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-8 2xl:px-10">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -86,7 +89,25 @@ function Topbar({ onMenuToggle = () => {} }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex items-center gap-1.5 rounded-[22px]  bg-white/90 p-1.5  gap-3">
+            {utilityItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                aria-label={item.label}
+                title={item.label}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+                  isPathActive(location.pathname, item.path)
+                    ? "border-cyan-200 bg-cyan-50 text-cyan-700 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
+                    : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800"
+                }`}
+              >
+                <NavigationIcon icon={item.icon} className="h-5 w-5" />
+              </Link>
+            ))}
+          </div>
+
           <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 shadow-sm shadow-slate-900/5 sm:flex">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 font-semibold text-white shadow-sm">
               {initials}

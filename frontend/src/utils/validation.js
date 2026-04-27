@@ -241,6 +241,13 @@ export const validateGenerationForm = (form) =>
     requiredText(form.pershkrimi, "Pershkrimi")
   );
 
+export const validateNotificationForm = (form) =>
+  runValidators(
+    requiredText(form.tag, "Kategoria"),
+    requiredText(form.titulli, "Titulli"),
+    requiredText(form.pershkrimi, "Pershkrimi")
+  );
+
 export const validateServiceForm = (form) =>
   runValidators(
     requiredText(form.emri, "Emri i sherbimit"),
