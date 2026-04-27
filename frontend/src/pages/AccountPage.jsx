@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
 import {
@@ -13,7 +14,8 @@ const emptyForm = {
 };
 
 function AccountPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -41,7 +43,19 @@ function AccountPage() {
 
     try {
       setSubmitting(true);
-      await API.put("/auth/password", form);
+      const response = await API.put("/auth/password", form);
+
+      if (response.data?.requiresReauthentication) {
+        await logout();
+        navigate("/login", {
+          replace: true,
+          state: {
+            passwordChanged: true,
+          },
+        });
+        return;
+      }
+
       setSuccess("Fjalekalimi u ndryshua me sukses.");
       setForm(emptyForm);
     } catch (err) {

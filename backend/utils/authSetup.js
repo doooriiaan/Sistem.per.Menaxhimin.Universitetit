@@ -179,6 +179,24 @@ const ensureUsersTable = async () => {
   `);
 };
 
+const ensureRefreshTokensTable = async () => {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      refresh_token_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token_hash CHAR(64) NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      revoked_at DATETIME NULL,
+      last_used_at DATETIME NULL,
+      user_agent VARCHAR(255) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    )
+  `);
+};
+
 const normalizeSchemaNaming = async () => {
   await renameColumnIfNeeded("lendet", "profesori_id", "profesor_id", "INT NULL");
   await renameColumnIfNeeded("oraret", "profesori_id", "profesor_id", "INT NULL");
@@ -252,6 +270,7 @@ const ensureAuthSetup = async () => {
   await ensureAdminsTable();
   await ensureSeedAdmin();
   await ensureUsersTable();
+  await ensureRefreshTokensTable();
   await migrateAdminsToUsers();
   await ensureCoreUniqueIndexes();
 };

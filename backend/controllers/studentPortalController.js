@@ -16,9 +16,11 @@ const getStudentProfile = async (studentId) => {
         s.statusi,
         s.viti_studimit,
         s.data_lindjes,
+        g.emri AS gjenerata,
         d.emri AS drejtimi,
         f.emri AS fakulteti
       FROM studentet s
+      LEFT JOIN gjeneratat g ON s.gjenerata_id = g.gjenerata_id
       LEFT JOIN drejtimet d ON s.drejtimi_id = d.drejtim_id
       LEFT JOIN fakultetet f ON d.fakulteti_id = f.fakultet_id
       WHERE s.student_id = ?
@@ -36,11 +38,21 @@ const getStudentProfile = async (studentId) => {
           SELECT COUNT(*)
           FROM regjistrimet r
           WHERE r.student_id = ?
-        ) AS total_regjistrimeve
+        ) AS total_regjistrimeve,
+        (
+          SELECT COUNT(*)
+          FROM kerkesat_sherbimeve ks
+          WHERE ks.student_id = ?
+        ) AS total_kerkesave_sherbimeve,
+        (
+          SELECT COUNT(*)
+          FROM rindjekjet_lendeve rl
+          WHERE rl.student_id = ?
+        ) AS total_rindjekjeve
       FROM notat n
       WHERE n.student_id = ?
     `,
-    [studentId, studentId]
+    [studentId, studentId, studentId, studentId]
   );
 
   return {
@@ -49,6 +61,8 @@ const getStudentProfile = async (studentId) => {
       mesatarja: null,
       total_notash: 0,
       total_regjistrimeve: 0,
+      total_kerkesave_sherbimeve: 0,
+      total_rindjekjeve: 0,
     },
   };
 };
@@ -93,6 +107,11 @@ const getStudentEnrollments = async (studentId) => {
         l.kodi,
         l.kreditet,
         l.lloji,
+        (
+          SELECT COUNT(*)
+          FROM regjistrim_dokumentet rd
+          WHERE rd.regjistrimi_id = r.regjistrimi_id
+        ) AS total_dokumenteve,
         CONCAT(COALESCE(p.emri, ''), ' ', COALESCE(p.mbiemri, '')) AS profesori
       FROM regjistrimet r
       JOIN lendet l ON r.lende_id = l.lende_id

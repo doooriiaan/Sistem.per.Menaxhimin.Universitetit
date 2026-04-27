@@ -1,39 +1,55 @@
 export const AUTH_STORAGE_KEY = "ums_auth";
+export const AUTH_UPDATED_EVENT = "auth:updated";
+export const AUTH_CLEARED_EVENT = "auth:cleared";
 
 const validRoles = ["admin", "profesor", "student"];
 
+const getStorage = () =>
+  typeof window === "undefined" ? null : window.sessionStorage;
+
+const normalizeAuthState = (parsedAuth) => {
+  const normalizedRole = String(parsedAuth?.user?.roli || "").toLowerCase();
+
+  if (
+    !parsedAuth?.token ||
+    !parsedAuth?.user ||
+    !parsedAuth.user.user_id ||
+    !validRoles.includes(normalizedRole)
+  ) {
+    return null;
+  }
+
+  return {
+    ...parsedAuth,
+    user: {
+      ...parsedAuth.user,
+      roli: normalizedRole,
+    },
+  };
+};
+
 export const getStoredAuth = () => {
-  if (typeof window === "undefined") {
+  const storage = getStorage();
+
+  if (!storage) {
     return null;
   }
 
   try {
-    const rawAuth = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const rawAuth = storage.getItem(AUTH_STORAGE_KEY);
 
     if (!rawAuth) {
       return null;
     }
 
-    const parsedAuth = JSON.parse(rawAuth);
-    const normalizedRole = String(parsedAuth?.user?.roli || "").toLowerCase();
+    const normalizedAuthState = normalizeAuthState(JSON.parse(rawAuth));
 
-    if (
-      !parsedAuth?.token ||
-      !parsedAuth?.user ||
-      !parsedAuth.user.user_id ||
-      !validRoles.includes(normalizedRole)
-    ) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    if (!normalizedAuthState) {
+      storage.removeItem(AUTH_STORAGE_KEY);
       return null;
     }
 
-    return {
-      ...parsedAuth,
-      user: {
-        ...parsedAuth.user,
-        roli: normalizedRole,
-      },
-    };
+    return normalizedAuthState;
   } catch {
     return null;
   }
@@ -42,17 +58,31 @@ export const getStoredAuth = () => {
 export const getStoredToken = () => getStoredAuth()?.token || "";
 
 export const setStoredAuth = (authData) => {
-  if (typeof window === "undefined") {
+  const storage = getStorage();
+  const normalizedAuthState = normalizeAuthState(authData);
+
+  if (!storage || !normalizedAuthState) {
     return;
   }
 
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+  storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedAuthState));
+  window.dispatchEvent(
+    new CustomEvent(AUTH_UPDATED_EVENT, {
+      detail: normalizedAuthState,
+    })
+  );
 };
 
-export const clearStoredAuth = () => {
-  if (typeof window === "undefined") {
+export const clearStoredAuth = ({ silent = false } = {}) => {
+  const storage = getStorage();
+
+  if (!storage) {
     return;
   }
 
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  storage.removeItem(AUTH_STORAGE_KEY);
+
+  if (!silent) {
+    window.dispatchEvent(new CustomEvent(AUTH_CLEARED_EVENT));
+  }
 };

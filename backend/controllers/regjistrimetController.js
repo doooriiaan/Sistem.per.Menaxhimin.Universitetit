@@ -1,4 +1,5 @@
 const db = require("../db");
+const { buildFileUrl } = require("../utils/fileStorage");
 const {
   handleDbError,
   isNonEmptyString,
@@ -28,7 +29,12 @@ const getAllRegjistrimet = (req, res) => {
       lende_id,
       semestri,
       viti_akademik,
-      statusi
+      statusi,
+      (
+        SELECT COUNT(*)
+        FROM regjistrim_dokumentet rd
+        WHERE rd.regjistrimi_id = regjistrimet.regjistrimi_id
+      ) AS total_dokumenteve
     FROM regjistrimet
   `;
 
@@ -48,7 +54,12 @@ const getRegjistrimiById = (req, res) => {
       lende_id,
       semestri,
       viti_akademik,
-      statusi
+      statusi,
+      (
+        SELECT COUNT(*)
+        FROM regjistrim_dokumentet rd
+        WHERE rd.regjistrimi_id = regjistrimet.regjistrimi_id
+      ) AS total_dokumenteve
     FROM regjistrimet
     WHERE regjistrimi_id = ?
   `;
@@ -154,10 +165,38 @@ const deleteRegjistrimi = (req, res) => {
   });
 };
 
+const getRegjistrimiDocuments = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+        SELECT
+          rd.*,
+          s.emri AS studenti_emri,
+          s.mbiemri AS studenti_mbiemri
+        FROM regjistrim_dokumentet rd
+        JOIN studentet s ON rd.student_id = s.student_id
+        WHERE rd.regjistrimi_id = ?
+        ORDER BY rd.uploaded_at DESC
+      `,
+      [req.params.id]
+    );
+
+    res.json(
+      rows.map((row) => ({
+        ...row,
+        download_url: buildFileUrl(req, row.file_path),
+      }))
+    );
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate marrjes se dokumenteve te regjistrimit.");
+  }
+};
+
 module.exports = {
   getAllRegjistrimet,
   getRegjistrimiById,
   createRegjistrimi,
   updateRegjistrimi,
-  deleteRegjistrimi
+  deleteRegjistrimi,
+  getRegjistrimiDocuments
 };

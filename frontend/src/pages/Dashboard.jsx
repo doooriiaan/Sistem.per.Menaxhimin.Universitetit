@@ -8,9 +8,15 @@ import { getApiErrorMessage } from "../utils/validation";
 const adminCards = [
   { key: "students", label: "Studentet", path: "/studentet" },
   { key: "profesoret", label: "Profesoret", path: "/profesoret" },
+  { key: "gjeneratat", label: "Gjeneratat", path: "/gjeneratat" },
   { key: "lendet", label: "Lendet", path: "/lendet" },
   { key: "provimet", label: "Provimet", path: "/provimet" },
   { key: "regjistrimet", label: "Regjistrimet", path: "/regjistrimet" },
+  { key: "kerkesat_sherbimeve", label: "Sherbimet", path: "/sherbimet" },
+  { key: "rindjekjet", label: "Rindjekje", path: "/rindjekjet" },
+  { key: "bursat", label: "Bursat", path: "/bursat" },
+  { key: "praktikat", label: "Internships", path: "/praktikat" },
+  { key: "erasmus", label: "Erasmus", path: "/erasmus" },
 ];
 
 const emptyDashboard = {};
@@ -335,6 +341,14 @@ function Dashboard() {
             </div>
             <div className="rounded-2xl bg-slate-100 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                Gjenerata
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">
+                {dashboard.profile?.gjenerata || "-"}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-100 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                 Fakulteti
               </p>
               <p className="mt-2 text-sm font-semibold text-slate-900">
@@ -369,6 +383,18 @@ function Dashboard() {
             <p className="text-sm text-slate-500">Provimet e lidhura</p>
             <h3 className="mt-3 text-3xl font-bold text-slate-900">
               {dashboard.exams?.length ?? 0}
+            </h3>
+          </div>
+          <div className="rounded-3xl bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Kerkesa sherbimesh</p>
+            <h3 className="mt-3 text-3xl font-bold text-slate-900">
+              {dashboard.summary?.total_kerkesave_sherbimeve ?? 0}
+            </h3>
+          </div>
+          <div className="rounded-3xl bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">Rindjekje</p>
+            <h3 className="mt-3 text-3xl font-bold text-slate-900">
+              {dashboard.summary?.total_rindjekjeve ?? 0}
             </h3>
           </div>
         </div>

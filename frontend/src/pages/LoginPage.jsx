@@ -22,6 +22,7 @@ function LoginPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const passwordChanged = Boolean(location.state?.passwordChanged);
 
   const redirectPath = location.state?.from?.pathname || "/";
 
@@ -67,14 +68,14 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10">
-      <div className="mx-auto flex min-h-[calc(90vh-5rem)] max-w-5xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl shadow-slate-950/40">
-        <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 p-10 text-white lg:flex">
+    <div className="auth-shell">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl overflow-hidden rounded-[36px] border border-white/50 bg-white/58 shadow-[0_40px_120px_rgba(15,23,42,0.16)] backdrop-blur-2xl">
+        <div className="hidden w-1/2 flex-col justify-between bg-[radial-gradient(circle_at_top_left,_rgba(45,212,191,0.28),_transparent_34%),linear-gradient(180deg,_rgba(15,23,42,0.96),_rgba(15,23,42,0.9))] p-10 text-white lg:flex">
           <div>
-            <p className="mb-4 text-sm uppercase tracking-[0.35em] text-slate-400">
+            <p className="mb-4 text-sm uppercase tracking-[0.35em] text-teal-200/80">
               University Management System
             </p>
-            <h1 className="mb-4 text-4xl font-bold leading-tight text-slate-200 ">
+            <h1 className="mb-4 text-4xl font-bold leading-tight text-white">
               Hyr ne sistem sipas rolit tend.
             </h1>
             <p className="max-w-md text-sm leading-7 text-slate-300">
@@ -84,7 +85,7 @@ function LoginPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6">
+          <div className="rounded-[28px] border border-white/10 bg-white/6 p-6 backdrop-blur-sm">
             <p className="text-sm font-semibold text-white">
               Nuk ke llogari ende?
             </p>
@@ -95,27 +96,36 @@ function LoginPage() {
           </div>
         </div>
 
-        <div className="flex w-full items-center justify-center bg-slate-100 p-8 lg:w-1/2">
+        <div className="flex w-full items-center justify-center bg-transparent p-8 lg:w-1/2">
           <div className="w-full max-w-md">
             <div className="mb-8">
-              <p className="text-md font-semibold uppercase tracking-[0.25em] text-slate-800 text-center  ">
+              <p className="text-md text-center font-semibold uppercase tracking-[0.28em] text-slate-600">
                 Login
               </p>
-              
-              <p className="mt-2 text-sm leading-6 text-slate-500 text-center">
+
+              <h1 className="mt-4 text-center text-3xl font-bold text-slate-950">
+                Mire se erdhe perseri
+              </h1>
+              <p className="mt-2 text-center text-sm leading-6 text-slate-500">
                 Identifikohu per te vazhduar ne sistem.
               </p>
             </div>
 
             {backendStatus === "offline" && <BackendStatusBanner />}
 
+            {passwordChanged && (
+              <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">
+                Fjalekalimi u ndryshua. Identifikohu perseri per te vazhduar.
+              </div>
+            )}
+
             {error && (
-              <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-5 rounded-[30px] border border-white/60 bg-white/72 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Email
@@ -126,7 +136,7 @@ function LoginPage() {
                   value={form.email}
                   onChange={handleChange}
                   placeholder="email@example.com"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+                  className="w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
                 />
               </div>
 
@@ -140,14 +150,14 @@ function LoginPage() {
                   value={form.password}
                   onChange={handleChange}
                   placeholder="Shkruaj fjalekalimin"
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
+                  className="w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
               >
                 {submitting ? "Duke u identifikuar..." : "Hyr ne sistem"}
               </button>

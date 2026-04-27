@@ -8,11 +8,17 @@ const titles = {
   "/ndihme": "Ndihme",
   "/studentet": "Studentet",
   "/profesoret": "Profesoret",
+  "/gjeneratat": "Gjeneratat",
   "/lendet": "Lendet",
   "/drejtimet": "Drejtimet",
   "/fakultetet": "Fakultetet",
   "/departamentet": "Departamentet",
   "/regjistrimet": "Regjistrimet",
+  "/sherbimet": "Sherbimet Studentore",
+  "/rindjekjet": "Rindjekja e Lendeve",
+  "/bursat": "Bursat",
+  "/praktikat": "Internships",
+  "/erasmus": "Programet Erasmus",
   "/provimet": "Provimet",
   "/notat": "Notat",
   "/oraret": "Oraret",
@@ -23,12 +29,17 @@ const titles = {
   "/student/profili": "Profili Im",
   "/student/notat": "Notat e Mia",
   "/student/regjistrimet": "Regjistrimet e Mia",
+  "/student/sherbimet": "Sherbimet e Mia",
+  "/student/rindjekjet": "Rindjekja e Lendeve",
+  "/student/bursat": "Bursat",
+  "/student/praktikat": "Internships",
+  "/student/erasmus": "Erasmus",
   "/student/provimet": "Provimet e Mia",
   "/student/orari": "Orari Im",
   "/llogaria": "Llogaria",
 };
 
-function Topbar() {
+function Topbar({ onMenuToggle = () => {} }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
@@ -40,37 +51,59 @@ function Topbar() {
   const fullName =
     [user?.emri, user?.mbiemri].filter(Boolean).join(" ") || "Perdorues";
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login", { replace: true });
   };
 
   return (
-    <header className="sticky top-0 flex h-20 items-center justify-between border-b border-slate-800 bg-slate-900 px-8">
-      <div>
-        <h2 className="text-xl font-semibold text-white">{pageTitle}</h2>
-        <p className="text-sm text-slate-400">
-          Sistemi i Menaxhimit te Universitetit
-        </p>
-      </div>
+    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/82 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-8">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onMenuToggle}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm lg:hidden"
+            aria-label="Hape navigimin"
+          >
+            <span className="space-y-1.5">
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+            </span>
+          </button>
 
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white font-semibold text-slate-900">
-            {initials}
-          </div>
-
-          <div className="leading-tight">
-            <p className="text-sm font-semibold text-white">{fullName}</p>
-            <p className="text-xs text-slate-400">
-              {user?.roli_label || "Perdorues"}
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-slate-500">
+              University Workspace
             </p>
+            <h2 className="mt-2 truncate text-2xl font-extrabold text-slate-950">
+              {pageTitle}
+            </h2>
+            <p className="text-sm text-slate-500">
+              Sistem universitar me module akademike dhe administrative
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 shadow-sm shadow-slate-900/5 sm:flex">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 font-semibold text-white shadow-sm">
+              {initials}
+            </div>
+
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-slate-900">{fullName}</p>
+              <p className="text-xs text-slate-500">
+                {user?.roli_label || "Perdorues"}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-600"
+            className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white transition hover:bg-slate-800"
           >
             Dil
           </button>

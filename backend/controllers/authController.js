@@ -3,6 +3,18 @@ const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { JWT_EXPIRES_IN, JWT_SECRET } = require("../utils/authConfig");
 const {
+  clearRefreshTokenCookie,
+  createRefreshToken,
+  getRefreshTokenFromRequest,
+  getRefreshTokenRecord,
+  isRefreshTokenExpired,
+  markRefreshTokenUsed,
+  revokeRefreshToken,
+  revokeRefreshTokenById,
+  revokeUserRefreshTokens,
+  setRefreshTokenCookie,
+} = require("../utils/sessionTokens");
+const {
   handleDbError,
   isEnumValue,
   isNonEmptyString,
@@ -34,6 +46,49 @@ const createToken = (user) =>
   jwt.sign(buildAuthUser(user), JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
+
+const buildSessionPayload = async (res, user, userAgent) => {
+  const { expiresAt, refreshToken } = await createRefreshToken(
+    user.user_id,
+    userAgent
+  );
+
+  setRefreshTokenCookie(res, refreshToken);
+
+  return {
+    session: {
+      accessTokenExpiresIn: JWT_EXPIRES_IN,
+      refreshTokenExpiresAt: expiresAt.toISOString(),
+    },
+    token: createToken(user),
+    user: buildAuthUser(user),
+  };
+};
+
+const issueAuthResponse = async (
+  req,
+  res,
+  user,
+  message,
+  statusCode = 200
+) => {
+  const currentRefreshToken = getRefreshTokenFromRequest(req);
+
+  if (currentRefreshToken) {
+    await revokeRefreshToken(currentRefreshToken);
+  }
+
+  const payload = await buildSessionPayload(
+    res,
+    user,
+    req.headers["user-agent"]
+  );
+
+  return res.status(statusCode).json({
+    message,
+    ...payload,
+  });
+};
 
 const getUserByEmail = async (email) => {
   const [rows] = await connection.query(
@@ -202,13 +257,12 @@ const login = async (req, res) => {
       });
     }
 
-    const token = createToken(user);
-
-    res.json({
-      message: "Identifikimi u krye me sukses.",
-      token,
-      user: buildAuthUser(user),
-    });
+    return issueAuthResponse(
+      req,
+      res,
+      user,
+      "Identifikimi u krye me sukses."
+    );
   } catch (err) {
     return handleDbError(res, err, "Gabim gjate identifikimit.");
   }
@@ -293,13 +347,13 @@ const register = async (req, res) => {
       mbiemri: profile.mbiemri,
     };
 
-    const token = createToken(registeredUser);
-
-    res.status(201).json({
-      message: "Regjistrimi u krye me sukses.",
-      token,
-      user: buildAuthUser(registeredUser),
-    });
+    return issueAuthResponse(
+      req,
+      res,
+      registeredUser,
+      "Regjistrimi u krye me sukses.",
+      201
+    );
   } catch (err) {
     return handleDbError(res, err, "Gabim gjate regjistrimit.");
   }
@@ -372,11 +426,93 @@ const changePassword = async (req, res) => {
       );
     }
 
+    await revokeUserRefreshTokens(req.user.user_id);
+    clearRefreshTokenCookie(res);
+
     return res.json({
-      message: "Fjalekalimi u ndryshua me sukses.",
+      message:
+        "Fjalekalimi u ndryshua me sukses. Ju lutem identifikohuni perseri.",
+      requiresReauthentication: true,
     });
   } catch (err) {
     return handleDbError(res, err, "Gabim gjate ndryshimit te fjalekalimit.");
+  }
+};
+
+const refresh = async (req, res) => {
+  const refreshToken = getRefreshTokenFromRequest(req);
+
+  if (!refreshToken) {
+    clearRefreshTokenCookie(res);
+    return res.status(401).json({
+      message: "Sesioni nuk mund te rifreskohet pa refresh token.",
+    });
+  }
+
+  try {
+    const refreshTokenRecord = await getRefreshTokenRecord(refreshToken);
+
+    if (!refreshTokenRecord) {
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        message: "Refresh token nuk eshte valid.",
+      });
+    }
+
+    if (
+      refreshTokenRecord.revoked_at ||
+      isRefreshTokenExpired(refreshTokenRecord)
+    ) {
+      await revokeRefreshTokenById(refreshTokenRecord.refresh_token_id);
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        message: "Refresh token ka skaduar ose eshte revokuar.",
+      });
+    }
+
+    const user = await getUserById(refreshTokenRecord.user_id);
+
+    if (!user) {
+      await revokeRefreshTokenById(refreshTokenRecord.refresh_token_id);
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        message: "Perdoruesi i lidhur me sesionin nuk u gjet.",
+      });
+    }
+
+    await markRefreshTokenUsed(refreshTokenRecord.refresh_token_id);
+    await revokeRefreshTokenById(refreshTokenRecord.refresh_token_id);
+
+    const payload = await buildSessionPayload(
+      res,
+      user,
+      req.headers["user-agent"]
+    );
+
+    return res.json({
+      message: "Sesioni u rifreskua me sukses.",
+      ...payload,
+    });
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate rifreskimit te sesionit.");
+  }
+};
+
+const logout = async (req, res) => {
+  const refreshToken = getRefreshTokenFromRequest(req);
+
+  try {
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+
+    clearRefreshTokenCookie(res);
+
+    return res.json({
+      message: "Sesioni u mbyll me sukses.",
+    });
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate mbylljes se sesionit.");
   }
 };
 
@@ -387,7 +523,13 @@ const getAdminDashboard = async () => {
       (SELECT COUNT(*) FROM profesoret) AS profesoret,
       (SELECT COUNT(*) FROM lendet) AS lendet,
       (SELECT COUNT(*) FROM provimet) AS provimet,
-      (SELECT COUNT(*) FROM regjistrimet) AS regjistrimet
+      (SELECT COUNT(*) FROM regjistrimet) AS regjistrimet,
+      (SELECT COUNT(*) FROM gjeneratat) AS gjeneratat,
+      (SELECT COUNT(*) FROM kerkesat_sherbimeve) AS kerkesat_sherbimeve,
+      (SELECT COUNT(*) FROM rindjekjet_lendeve) AS rindjekjet,
+      (SELECT COUNT(*) FROM bursat) AS bursat,
+      (SELECT COUNT(*) FROM praktikat) AS praktikat,
+      (SELECT COUNT(*) FROM programet_erasmus) AS erasmus
   `);
 
   return {
@@ -488,9 +630,11 @@ const getStudentDashboard = async (studentId) => {
         s.telefoni,
         s.statusi,
         s.viti_studimit,
+        g.emri AS gjenerata,
         d.emri AS drejtimi,
         f.emri AS fakulteti
       FROM studentet s
+      LEFT JOIN gjeneratat g ON s.gjenerata_id = g.gjenerata_id
       LEFT JOIN drejtimet d ON s.drejtimi_id = d.drejtim_id
       LEFT JOIN fakultetet f ON d.fakulteti_id = f.fakultet_id
       WHERE s.student_id = ?
@@ -578,11 +722,21 @@ const getStudentDashboard = async (studentId) => {
     `
       SELECT
         ROUND(AVG(nota), 2) AS mesatarja,
-        COUNT(*) AS total_notash
+        COUNT(*) AS total_notash,
+        (
+          SELECT COUNT(*)
+          FROM kerkesat_sherbimeve ks
+          WHERE ks.student_id = ?
+        ) AS total_kerkesave_sherbimeve,
+        (
+          SELECT COUNT(*)
+          FROM rindjekjet_lendeve rl
+          WHERE rl.student_id = ?
+        ) AS total_rindjekjeve
       FROM notat
       WHERE student_id = ?
     `,
-    [studentId]
+    [studentId, studentId, studentId]
   );
 
   return {
@@ -592,7 +746,12 @@ const getStudentDashboard = async (studentId) => {
     enrollments: enrollmentRows,
     exams: examRows,
     schedule: scheduleRows,
-    summary: summaryRows[0] || { mesatarja: null, total_notash: 0 },
+    summary: summaryRows[0] || {
+      mesatarja: null,
+      total_notash: 0,
+      total_kerkesave_sherbimeve: 0,
+      total_rindjekjeve: 0,
+    },
   };
 };
 
@@ -616,6 +775,8 @@ module.exports = {
   changePassword,
   dashboard,
   login,
+  logout,
   me,
+  refresh,
   register,
 };

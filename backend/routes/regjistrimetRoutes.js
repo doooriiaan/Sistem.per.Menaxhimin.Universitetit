@@ -5,10 +5,12 @@ const {
   getRegjistrimiById,
   createRegjistrimi,
   updateRegjistrimi,
-  deleteRegjistrimi
+  deleteRegjistrimi,
+  getRegjistrimiDocuments
 } = require("../controllers/regjistrimetController");
 
 router.get("/", getAllRegjistrimet);
+router.get("/:id/dokumentet", getRegjistrimiDocuments);
 router.get("/:id", getRegjistrimiById);
 router.post("/", createRegjistrimi);
 router.put("/:id", updateRegjistrimi);

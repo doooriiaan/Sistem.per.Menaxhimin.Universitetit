@@ -74,6 +74,18 @@ const getDuplicateEntryMessage = (err) => {
     return "Ky student eshte tashme i regjistruar ne kete lende per kete vit akademik.";
   }
 
+  if (errorMessage.includes("uq_aplikimet_bursave_student")) {
+    return "Studenti ka aplikuar tashme per kete burse.";
+  }
+
+  if (errorMessage.includes("uq_aplikimet_praktikave_student")) {
+    return "Studenti ka aplikuar tashme per kete praktike.";
+  }
+
+  if (errorMessage.includes("uq_aplikimet_erasmus_student")) {
+    return "Studenti ka aplikuar tashme per kete program Erasmus.";
+  }
+
   if (errorMessage.includes("email")) {
     return "Ky email ekziston tashme.";
   }

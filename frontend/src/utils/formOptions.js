@@ -52,6 +52,75 @@ export const REGISTRATION_STATUS_OPTIONS = [
   { value: "Anuluar", label: "Anuluar" },
 ];
 
+export const GENERATION_STATUS_OPTIONS = [
+  { value: "Aktive", label: "Aktive" },
+  { value: "Diplomuar", label: "Diplomuar" },
+  { value: "Arkivuar", label: "Arkivuar" },
+];
+
+export const SERVICE_CATEGORY_OPTIONS = [
+  { value: "Administrate", label: "Administrate" },
+  { value: "Akademike", label: "Akademike" },
+  { value: "Identifikim", label: "Identifikim" },
+  { value: "Financa", label: "Financa" },
+];
+
+export const SERVICE_REQUEST_STATUS_OPTIONS = [
+  { value: "Ne pritje", label: "Ne pritje" },
+  { value: "Ne shqyrtim", label: "Ne shqyrtim" },
+  { value: "Miratuar", label: "Miratuar" },
+  { value: "Perfunduar", label: "Perfunduar" },
+  { value: "Refuzuar", label: "Refuzuar" },
+];
+
+export const PAYMENT_STATUS_OPTIONS = [
+  { value: "Ne pritje", label: "Ne pritje" },
+  { value: "Paguajtur", label: "Paguajtur" },
+  { value: "Nuk kerkohet", label: "Nuk kerkohet" },
+  { value: "Rimbursuar", label: "Rimbursuar" },
+];
+
+export const OPPORTUNITY_STATUS_OPTIONS = [
+  { value: "Hapur", label: "Hapur" },
+  { value: "Mbyllur", label: "Mbyllur" },
+  { value: "Arkivuar", label: "Arkivuar" },
+];
+
+export const APPLICATION_STATUS_OPTIONS = [
+  { value: "Ne pritje", label: "Ne pritje" },
+  { value: "Ne shqyrtim", label: "Ne shqyrtim" },
+  { value: "Pranuar", label: "Pranuar" },
+  { value: "Refuzuar", label: "Refuzuar" },
+];
+
+export const STUDENT_DOCUMENT_TYPE_OPTIONS = [
+  { value: "Certifikata e lindjes", label: "Certifikata e lindjes" },
+  { value: "Diploma e shkolles se mesme", label: "Diploma e shkolles se mesme" },
+  { value: "Transkripti i shkolles se mesme", label: "Transkripti i shkolles se mesme" },
+  { value: "Dokument identifikimi", label: "Dokument identifikimi" },
+  { value: "Fotografi per kartel ID", label: "Fotografi per kartel ID" },
+  { value: "Dokument shtese", label: "Dokument shtese" },
+];
+
+export const SCHOLARSHIP_TYPE_OPTIONS = [
+  { value: "Merite", label: "Merite" },
+  { value: "Sociale", label: "Sociale" },
+  { value: "Hulumtuese", label: "Hulumtuese" },
+  { value: "Sportive", label: "Sportive" },
+];
+
+export const INTERNSHIP_TYPE_OPTIONS = [
+  { value: "Me pagese", label: "Me pagese" },
+  { value: "Pa pagese", label: "Pa pagese" },
+  { value: "Hibrid", label: "Hibrid" },
+];
+
+export const ERASMUS_SEMESTER_OPTIONS = [
+  { value: "Dimeror", label: "Dimeror" },
+  { value: "Veror", label: "Veror" },
+  { value: "Vjetor", label: "Vjetor" },
+];
+
 export const DEGREE_LEVEL_OPTIONS = [
   { value: "Bachelor", label: "Bachelor" },
   { value: "Master", label: "Master" },

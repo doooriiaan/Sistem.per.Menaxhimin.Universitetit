@@ -44,6 +44,16 @@ CREATE TABLE drejtimet (
         ON UPDATE CASCADE
 );
 
+CREATE TABLE gjeneratat (
+    gjenerata_id INT AUTO_INCREMENT PRIMARY KEY,
+    emri VARCHAR(120) NOT NULL,
+    viti_regjistrimit INT NOT NULL,
+    viti_diplomimit INT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Aktive',
+    pershkrimi TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE profesoret (
     profesor_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -71,11 +81,15 @@ CREATE TABLE studentet (
     telefoni VARCHAR(50) NOT NULL,
     adresa VARCHAR(150) NOT NULL,
     drejtimi_id INT NULL,
+    gjenerata_id INT NULL,
     viti_studimit INT NOT NULL,
     statusi VARCHAR(50) NOT NULL,
     UNIQUE KEY uq_studentet_numri_personal (numri_personal),
     UNIQUE KEY uq_studentet_email (email),
     FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    FOREIGN KEY (gjenerata_id) REFERENCES gjeneratat(gjenerata_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
 );
@@ -182,6 +196,221 @@ CREATE TABLE users (
         ON UPDATE CASCADE
 );
 
+CREATE TABLE refresh_tokens (
+    refresh_token_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    revoked_at DATETIME NULL,
+    last_used_at DATETIME NULL,
+    user_agent VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE student_dokumentet (
+    dokument_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    lloji_dokumentit VARCHAR(120) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(120) NOT NULL,
+    file_size INT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE regjistrim_dokumentet (
+    dokument_id INT AUTO_INCREMENT PRIMARY KEY,
+    regjistrimi_id INT NOT NULL,
+    student_id INT NOT NULL,
+    emri_dokumentit VARCHAR(120) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(120) NOT NULL,
+    file_size INT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (regjistrimi_id) REFERENCES regjistrimet(regjistrimi_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE sherbimet_studentore (
+    sherbimi_id INT AUTO_INCREMENT PRIMARY KEY,
+    emri VARCHAR(140) NOT NULL,
+    kategoria VARCHAR(80) NOT NULL,
+    pershkrimi TEXT NOT NULL,
+    cmimi DECIMAL(10,2) NOT NULL DEFAULT 0,
+    valuta VARCHAR(10) NOT NULL DEFAULT 'EUR',
+    aktiv TINYINT(1) NOT NULL DEFAULT 1,
+    kerkon_dokument TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE kerkesat_sherbimeve (
+    kerkesa_id INT AUTO_INCREMENT PRIMARY KEY,
+    sherbimi_id INT NOT NULL,
+    student_id INT NOT NULL,
+    arsyeja TEXT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    statusi_pageses VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    metoda_pageses VARCHAR(40) NULL,
+    karta_maskuar VARCHAR(40) NULL,
+    reference_pagese VARCHAR(80) NULL,
+    shuma_paguar DECIMAL(10,2) NOT NULL DEFAULT 0,
+    shenime_admin TEXT NULL,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    paid_at DATETIME NULL,
+    approved_at DATETIME NULL,
+    FOREIGN KEY (sherbimi_id) REFERENCES sherbimet_studentore(sherbimi_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE rindjekjet_lendeve (
+    rindjekja_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    lende_id INT NOT NULL,
+    semestri INT NOT NULL,
+    viti_akademik VARCHAR(20) NOT NULL,
+    arsyeja TEXT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    statusi_pageses VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    karta_maskuar VARCHAR(40) NULL,
+    reference_pagese VARCHAR(80) NULL,
+    shuma_detyrimit DECIMAL(10,2) NOT NULL DEFAULT 0,
+    shuma_paguar DECIMAL(10,2) NOT NULL DEFAULT 0,
+    shenime_admin TEXT NULL,
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE bursat (
+    bursa_id INT AUTO_INCREMENT PRIMARY KEY,
+    titulli VARCHAR(160) NOT NULL,
+    pershkrimi TEXT NOT NULL,
+    lloji VARCHAR(80) NOT NULL,
+    shuma DECIMAL(10,2) NOT NULL,
+    kriteret TEXT NOT NULL,
+    afati_aplikimit DATE NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Hapur',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE aplikimet_bursave (
+    aplikimi_id INT AUTO_INCREMENT PRIMARY KEY,
+    bursa_id INT NOT NULL,
+    student_id INT NOT NULL,
+    motivimi TEXT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    dokument_name VARCHAR(255) NULL,
+    dokument_path VARCHAR(255) NULL,
+    dokument_mime VARCHAR(120) NULL,
+    dokument_size INT NULL,
+    shenime_admin TEXT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_aplikimet_bursave_student (bursa_id, student_id),
+    FOREIGN KEY (bursa_id) REFERENCES bursat(bursa_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE praktikat (
+    praktika_id INT AUTO_INCREMENT PRIMARY KEY,
+    kompania VARCHAR(160) NOT NULL,
+    pozita VARCHAR(160) NOT NULL,
+    pershkrimi TEXT NOT NULL,
+    lokacioni VARCHAR(120) NOT NULL,
+    kompensimi VARCHAR(120) NOT NULL,
+    lloji VARCHAR(60) NOT NULL,
+    afati_aplikimit DATE NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Hapur',
+    drejtimi_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE aplikimet_praktikave (
+    aplikimi_id INT AUTO_INCREMENT PRIMARY KEY,
+    praktika_id INT NOT NULL,
+    student_id INT NOT NULL,
+    mesazh TEXT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    dokument_name VARCHAR(255) NULL,
+    dokument_path VARCHAR(255) NULL,
+    dokument_mime VARCHAR(120) NULL,
+    dokument_size INT NULL,
+    shenime_admin TEXT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_aplikimet_praktikave_student (praktika_id, student_id),
+    FOREIGN KEY (praktika_id) REFERENCES praktikat(praktika_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE programet_erasmus (
+    erasmus_id INT AUTO_INCREMENT PRIMARY KEY,
+    universiteti VARCHAR(180) NOT NULL,
+    shteti VARCHAR(120) NOT NULL,
+    semestri VARCHAR(40) NOT NULL,
+    viti_akademik VARCHAR(20) NOT NULL,
+    financimi VARCHAR(140) NOT NULL,
+    pershkrimi TEXT NOT NULL,
+    afati_aplikimit DATE NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Hapur',
+    drejtimi_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (drejtimi_id) REFERENCES drejtimet(drejtim_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
+);
+
+CREATE TABLE aplikimet_erasmus (
+    aplikimi_id INT AUTO_INCREMENT PRIMARY KEY,
+    erasmus_id INT NOT NULL,
+    student_id INT NOT NULL,
+    motivimi TEXT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Ne pritje',
+    dokument_name VARCHAR(255) NULL,
+    dokument_path VARCHAR(255) NULL,
+    dokument_mime VARCHAR(120) NULL,
+    dokument_size INT NULL,
+    shenime_admin TEXT NULL,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_aplikimet_erasmus_student (erasmus_id, student_id),
+    FOREIGN KEY (erasmus_id) REFERENCES programet_erasmus(erasmus_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
 -- Seed data bazike per testim dhe autentikim
 -- Kredencialet default:
 -- Admin: admin@universiteti.local / Admin123!
@@ -210,6 +439,15 @@ INSERT INTO drejtimet (drejtim_id, emri, fakulteti_id, niveli, kohezgjatja_vite,
     (3, 'Financa dhe Kontabilitet', 2, 'Bachelor', 3, 'Program i fokusuar ne kontabilitet, financa, raportim dhe planifikim financiar.'),
     (4, 'Banka dhe Sigurime', 2, 'Bachelor', 3, 'Program i fokusuar ne banka, sigurime, produkte financiare dhe menaxhim risku.'),
     (5, 'Analize Financiare dhe Auditim', 2, 'Master', 2, 'Program i avancuar per auditim, tatime, raportim financiar dhe analiza te tregjeve.');
+
+INSERT INTO gjeneratat (
+    gjenerata_id, emri, viti_regjistrimit, viti_diplomimit, statusi, pershkrimi
+) VALUES
+    (1, 'Gjenerata 2021/2022', 2021, 2024, 'Diplomuar', 'Gjenerate e kaluar e arkivuar per historikun akademik.'),
+    (2, 'Gjenerata 2022/2023', 2022, 2025, 'Diplomuar', 'Gjenerate e kaluar me studentet qe kane perfunduar studimet.'),
+    (3, 'Gjenerata 2023/2024', 2023, 2026, 'Aktive', 'Gjenerate aktive ne fazen e avancuar te studimeve.'),
+    (4, 'Gjenerata 2024/2025', 2024, 2027, 'Aktive', 'Gjenerate aktive me studentet e viteve te mesme.'),
+    (5, 'Gjenerata 2025/2026', 2025, 2028, 'Aktive', 'Gjenerate e re per pranimet aktuale dhe regjistrimet hyrse.');
 
 INSERT INTO profesoret (
     profesor_id, emri, mbiemri, titulli_akademik, departamenti_id, email, telefoni, specializimi, data_punesimit
@@ -249,13 +487,13 @@ SET shefi_id = 5
 WHERE departament_id = 5;
 
 INSERT INTO studentet (
-    student_id, emri, mbiemri, numri_personal, data_lindjes, gjinia, email, telefoni, adresa, drejtimi_id, viti_studimit, statusi
+    student_id, emri, mbiemri, numri_personal, data_lindjes, gjinia, email, telefoni, adresa, drejtimi_id, gjenerata_id, viti_studimit, statusi
 ) VALUES
-    (1, 'Dorian', 'Rinor', '1002003001', '2004-03-12', 'M', 'dorian.rinor1@student.uni.local', '+38349111111', 'Prishtine', 1, 2, 'Aktiv'),
-    (2, 'Rinor', 'Dorian', '1002003002', '2003-11-07', 'M', 'rinor.dorian2@student.uni.local', '+38349222222', 'Gjilan', 2, 3, 'Aktiv'),
-    (3, 'Dorian', 'Rinor', '1002003003', '2004-06-20', 'F', 'dorian.rinor3@student.uni.local', '+38349333333', 'Prizren', 3, 2, 'Aktiv'),
-    (4, 'Rinor', 'Dorian', '1002003004', '2002-09-17', 'M', 'rinor.dorian4@student.uni.local', '+38349444444', 'Peje', 4, 3, 'Aktiv'),
-    (5, 'Dorian', 'Rinor', '1002003005', '2001-12-09', 'F', 'dorian.rinor5@student.uni.local', '+38349555555', 'Ferizaj', 5, 1, 'Aktiv');
+    (1, 'Dorian', 'Rinor', '1002003001', '2004-03-12', 'M', 'dorian.rinor1@student.uni.local', '+38349111111', 'Prishtine', 1, 4, 2, 'Aktiv'),
+    (2, 'Rinor', 'Dorian', '1002003002', '2003-11-07', 'M', 'rinor.dorian2@student.uni.local', '+38349222222', 'Gjilan', 2, 3, 3, 'Aktiv'),
+    (3, 'Dorian', 'Rinor', '1002003003', '2004-06-20', 'F', 'dorian.rinor3@student.uni.local', '+38349333333', 'Prizren', 3, 4, 2, 'Aktiv'),
+    (4, 'Rinor', 'Dorian', '1002003004', '2002-09-17', 'M', 'rinor.dorian4@student.uni.local', '+38349444444', 'Peje', 4, 3, 3, 'Aktiv'),
+    (5, 'Dorian', 'Rinor', '1002003005', '2001-12-09', 'F', 'dorian.rinor5@student.uni.local', '+38349555555', 'Ferizaj', 5, 5, 1, 'Aktiv');
 
 INSERT INTO lendet (
     lende_id, emri, kodi, kreditet, semestri, drejtimi_id, profesor_id, lloji, pershkrimi
@@ -349,3 +587,29 @@ INSERT INTO users (
     (9, 'dorian.rinor3@student.uni.local', '$2b$10$qh84MaGcEQ9L3EChUoltHOpJveH3obzWIcvChKb0QILSB5ofmEESW', 'student', NULL, NULL, 3, 1),
     (10, 'rinor.dorian4@student.uni.local', '$2b$10$qh84MaGcEQ9L3EChUoltHOpJveH3obzWIcvChKb0QILSB5ofmEESW', 'student', NULL, NULL, 4, 1),
     (11, 'dorian.rinor5@student.uni.local', '$2b$10$qh84MaGcEQ9L3EChUoltHOpJveH3obzWIcvChKb0QILSB5ofmEESW', 'student', NULL, NULL, 5, 1);
+
+INSERT INTO sherbimet_studentore (
+    sherbimi_id, emri, kategoria, pershkrimi, cmimi, valuta, aktiv, kerkon_dokument
+) VALUES
+    (1, 'Kartela ID e re', 'Identifikim', 'Leshimi i karteles se re studentore ne rast humbjeje ose demtimi.', 12.00, 'EUR', 1, 1),
+    (2, 'Vertetim studenti', 'Administrate', 'Vertetim zyrtar per statusin aktiv te studentit.', 3.00, 'EUR', 1, 0),
+    (3, 'Transkript notash', 'Akademike', 'Transkript zyrtar i notave per aplikime te jashtme ose transfer.', 5.00, 'EUR', 1, 0),
+    (4, 'Dublikim diplome', 'Administrate', 'Leshim i duplikatit te diplomes per rastet e humbjes ose demtimit.', 25.00, 'EUR', 1, 1);
+
+INSERT INTO bursat (
+    bursa_id, titulli, pershkrimi, lloji, shuma, kriteret, afati_aplikimit, statusi
+) VALUES
+    (1, 'Bursa e Ekselences Akademike', 'Burse vjetore per studentet me performance te larte akademike.', 'Merite', 800.00, 'Mesatare minimale 9.0 dhe se paku 30 ECTS te perfunduara.', '2026-06-30', 'Hapur'),
+    (2, 'Bursa e Mbeshtetjes Sociale', 'Mbeshtetje financiare per studentet ne kushte te veshtira ekonomike.', 'Sociale', 650.00, 'Dokumentim i gjendjes ekonomike dhe status aktiv i studimeve.', '2026-07-15', 'Hapur');
+
+INSERT INTO praktikat (
+    praktika_id, kompania, pozita, pershkrimi, lokacioni, kompensimi, lloji, afati_aplikimit, statusi, drejtimi_id
+) VALUES
+    (1, 'TechNova', 'Frontend Intern', 'Praktike verore ne zhvillim frontend me fokus ne React dhe UX.', 'Prishtine', '250 EUR/muaj', 'Me pagese', '2026-06-20', 'Hapur', 1),
+    (2, 'FinCore', 'Analist Praktikant', 'Praktike ne finance operative, raportim dhe analiza te te dhenave.', 'Prishtine', '300 EUR/muaj', 'Me pagese', '2026-06-25', 'Hapur', 3);
+
+INSERT INTO programet_erasmus (
+    erasmus_id, universiteti, shteti, semestri, viti_akademik, financimi, pershkrimi, afati_aplikimit, statusi, drejtimi_id
+) VALUES
+    (1, 'University of Ljubljana', 'Sloveni', 'Dimeror', '2026/2027', 'Burse Erasmus+ dhe mbulim pjese te qendrimit', 'Shkembim semestral per studentet e shkencave kompjuterike dhe sistemeve informative.', '2026-07-10', 'Hapur', 1),
+    (2, 'University of Graz', 'Austri', 'Veror', '2026/2027', 'Mbeshtetje Erasmus+ dhe kredi transferuese', 'Program mobiliteti per studentet e financave, bankes dhe auditimit.', '2026-07-20', 'Hapur', 3);

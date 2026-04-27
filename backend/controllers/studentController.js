@@ -1,13 +1,22 @@
 const db = require("../db");
+const { buildFileUrl, saveBase64Upload } = require("../utils/fileStorage");
 const {
   handleDbError,
   isEnumValue,
   isNonEmptyString,
+  isNullablePositiveInteger,
   isPositiveInteger,
   isValidDate,
   isValidEmail,
   sendValidationError,
 } = require("../utils/validation");
+
+const DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
 
 const validateStudentPayload = (payload) => {
   const {
@@ -20,6 +29,7 @@ const validateStudentPayload = (payload) => {
     telefoni,
     adresa,
     drejtimi_id,
+    gjenerata_id,
     viti_studimit,
     statusi,
   } = payload;
@@ -33,6 +43,7 @@ const validateStudentPayload = (payload) => {
   if (!isNonEmptyString(telefoni)) return "Telefoni eshte i detyrueshem.";
   if (!isNonEmptyString(adresa)) return "Adresa eshte e detyrueshme.";
   if (!isPositiveInteger(drejtimi_id)) return "Drejtimi duhet te zgjidhet sakte.";
+  if (!isNullablePositiveInteger(gjenerata_id)) return "Gjenerata duhet te zgjidhet sakte.";
   if (!isPositiveInteger(viti_studimit) || Number(viti_studimit) > 6) {
     return "Viti i studimit duhet te jete nga 1 deri ne 6.";
   }
@@ -87,14 +98,15 @@ const createstudent = (req, res) => {
     telefoni,
     adresa,
     drejtimi_id,
+    gjenerata_id,
     viti_studimit,
     statusi
   } = req.body;
 
   const sql = `
     INSERT INTO studentet
-    (emri, mbiemri, numri_personal, data_lindjes, gjinia, email, telefoni, adresa, drejtimi_id, viti_studimit, statusi)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (emri, mbiemri, numri_personal, data_lindjes, gjinia, email, telefoni, adresa, drejtimi_id, gjenerata_id, viti_studimit, statusi)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.query(
@@ -109,6 +121,7 @@ const createstudent = (req, res) => {
       telefoni,
       adresa,
       drejtimi_id,
+      gjenerata_id || null,
       viti_studimit,
       statusi
     ],
@@ -143,13 +156,14 @@ const updatestudent = (req, res) => {
     telefoni,
     adresa,
     drejtimi_id,
+    gjenerata_id,
     viti_studimit,
     statusi
   } = req.body;
 
   const sql = `
     UPDATE studentet
-    SET emri = ?, mbiemri = ?, numri_personal = ?, data_lindjes = ?, gjinia = ?, email = ?, telefoni = ?, adresa = ?, drejtimi_id = ?, viti_studimit = ?, statusi = ?
+    SET emri = ?, mbiemri = ?, numri_personal = ?, data_lindjes = ?, gjinia = ?, email = ?, telefoni = ?, adresa = ?, drejtimi_id = ?, gjenerata_id = ?, viti_studimit = ?, statusi = ?
     WHERE student_id = ?
   `;
 
@@ -165,6 +179,7 @@ const updatestudent = (req, res) => {
       telefoni,
       adresa,
       drejtimi_id,
+      gjenerata_id || null,
       viti_studimit,
       statusi,
       id
@@ -207,11 +222,13 @@ const getstudentdetails = (req, res) => {
       s.emri,
       s.mbiemri,
       d.emri AS drejtimi,
+      g.emri AS gjenerata,
       f.emri AS fakulteti,
       s.viti_studimit,
       s.statusi
     FROM studentet s
     JOIN drejtimet d ON s.drejtimi_id = d.drejtim_id
+    LEFT JOIN gjeneratat g ON s.gjenerata_id = g.gjenerata_id
     JOIN fakultetet f ON d.fakulteti_id = f.fakultet_id
   `;
 
@@ -224,11 +241,89 @@ const getstudentdetails = (req, res) => {
   });
 };
 
+const getStudentDocuments = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+        SELECT *
+        FROM student_dokumentet
+        WHERE student_id = ?
+        ORDER BY uploaded_at DESC
+      `,
+      [req.params.id]
+    );
+
+    res.json(
+      rows.map((row) => ({
+        ...row,
+        download_url: buildFileUrl(req, row.file_path),
+      }))
+    );
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate marrjes se dokumenteve te studentit.");
+  }
+};
+
+const uploadStudentDocument = async (req, res) => {
+  const { lloji_dokumentit, file } = req.body;
+
+  if (!isNonEmptyString(lloji_dokumentit)) {
+    return sendValidationError(res, "Lloji i dokumentit eshte i detyrueshem.");
+  }
+
+  if (!file?.dataUrl || !file?.originalName) {
+    return sendValidationError(res, "Skedari per ngarkim eshte i detyrueshem.");
+  }
+
+  try {
+    const stored = saveBase64Upload(file, {
+      directory: `studentet/student-${req.params.id}/dokumente`,
+      allowedMimeTypes: DOCUMENT_MIME_TYPES,
+    });
+
+    const [result] = await db.promise().query(
+      `
+        INSERT INTO student_dokumentet
+          (student_id, lloji_dokumentit, file_name, original_name, file_path, mime_type, file_size)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        req.params.id,
+        lloji_dokumentit.trim(),
+        stored.fileName,
+        stored.originalName,
+        stored.filePath,
+        stored.mimeType,
+        stored.fileSize,
+      ]
+    );
+
+    res.status(201).json({
+      message: "Dokumenti i studentit u ngarkua me sukses.",
+      id: result.insertId,
+      download_url: buildFileUrl(req, stored.filePath),
+    });
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message
+        ? err.message
+        : "Gabim gjate ngarkimit te dokumentit.";
+
+    if (message !== "Gabim gjate ngarkimit te dokumentit.") {
+      return res.status(400).json({ message });
+    }
+
+    return handleDbError(res, err, message);
+  }
+};
+
 module.exports = {
   getallstudents,
   getstudentbyid,
   createstudent,
   updatestudent,
   deletestudent,
-  getstudentdetails
+  getstudentdetails,
+  getStudentDocuments,
+  uploadStudentDocument
 };

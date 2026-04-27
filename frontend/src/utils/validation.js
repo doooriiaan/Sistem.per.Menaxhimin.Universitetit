@@ -165,6 +165,7 @@ export const validateStudentForm = (form) =>
     requiredText(form.telefoni, "Telefoni"),
     requiredText(form.adresa, "Adresa"),
     positiveInteger(form.drejtimi_id, "Drejtimi"),
+    nullablePositiveInteger(form.gjenerata_id, "Gjenerata"),
     positiveInteger(form.viti_studimit, "Viti i studimit", { max: 6 }),
     requiredText(form.statusi, "Statusi")
   );
@@ -226,6 +227,149 @@ export const validateRegjistrimiForm = (form) =>
     positiveInteger(form.semestri, "Semestri", { max: 12 }),
     requiredText(form.viti_akademik, "Viti akademik"),
     requiredText(form.statusi, "Statusi")
+  );
+
+export const validateGenerationForm = (form) =>
+  runValidators(
+    requiredText(form.emri, "Emri i gjenerates"),
+    positiveInteger(form.viti_regjistrimit, "Viti i regjistrimit"),
+    positiveInteger(form.viti_diplomimit, "Viti i diplomimit"),
+    Number(form.viti_diplomimit) >= Number(form.viti_regjistrimit)
+      ? null
+      : "Viti i diplomimit duhet te jete pas vitit te regjistrimit.",
+    requiredText(form.statusi, "Statusi"),
+    requiredText(form.pershkrimi, "Pershkrimi")
+  );
+
+export const validateServiceForm = (form) =>
+  runValidators(
+    requiredText(form.emri, "Emri i sherbimit"),
+    requiredText(form.kategoria, "Kategoria"),
+    requiredText(form.pershkrimi, "Pershkrimi"),
+    Number.isFinite(Number(form.cmimi)) && Number(form.cmimi) >= 0
+      ? null
+      : "Cmimi duhet te jete numer valid.",
+    requiredText(form.valuta, "Valuta")
+  );
+
+export const validateServiceRequestUpdateForm = (form) =>
+  runValidators(
+    requiredText(form.statusi, "Statusi"),
+    requiredText(form.statusi_pageses, "Statusi i pageses")
+  );
+
+export const validatePaymentForm = (payment) =>
+  runValidators(
+    payment
+      ? null
+      : "Detajet e pageses jane te detyrueshme.",
+    requiredText(payment?.cardholderName, "Emri ne kartel"),
+    String(payment?.cardNumber || "").replace(/\D/g, "").length >= 12
+      ? null
+      : "Numri i karteles nuk eshte valid.",
+    /^\d{2}$/.test(String(payment?.expiryMonth || "")) &&
+    Number(payment?.expiryMonth) >= 1 &&
+    Number(payment?.expiryMonth) <= 12
+      ? null
+      : "Muaji i skadimit nuk eshte valid.",
+    /^\d{2,4}$/.test(String(payment?.expiryYear || ""))
+      ? null
+      : "Viti i skadimit nuk eshte valid.",
+    /^\d{3,4}$/.test(String(payment?.cvv || ""))
+      ? null
+      : "CVV nuk eshte valid."
+  );
+
+export const validateStudentServiceRequestForm = (form, { requirePayment = false } = {}) =>
+  runValidators(
+    positiveInteger(form.sherbimi_id, "Sherbimi"),
+    requiredText(form.arsyeja, "Arsyeja"),
+    requirePayment ? validatePaymentForm(form.payment) : null
+  );
+
+export const validateRepeatRequestForm = (form) =>
+  runValidators(
+    positiveInteger(form.lende_id, "Lenda"),
+    positiveInteger(form.semestri, "Semestri", { max: 12 }),
+    requiredText(form.viti_akademik, "Viti akademik"),
+    requiredText(form.arsyeja, "Arsyeja"),
+    validatePaymentForm(form.payment)
+  );
+
+export const validateRepeatUpdateForm = (form) =>
+  runValidators(
+    requiredText(form.statusi, "Statusi"),
+    requiredText(form.statusi_pageses, "Statusi i pageses")
+  );
+
+export const validateScholarshipForm = (form) =>
+  runValidators(
+    requiredText(form.titulli, "Titulli"),
+    requiredText(form.pershkrimi, "Pershkrimi"),
+    requiredText(form.lloji, "Lloji"),
+    Number.isFinite(Number(form.shuma)) && Number(form.shuma) > 0
+      ? null
+      : "Shuma duhet te jete numer valid.",
+    requiredText(form.kriteret, "Kriteret"),
+    validDate(form.afati_aplikimit, "Afati i aplikimit"),
+    requiredText(form.statusi, "Statusi")
+  );
+
+export const validateApplicationStatusForm = (form) =>
+  runValidators(requiredText(form.statusi, "Statusi"));
+
+export const validateScholarshipApplicationForm = (form) =>
+  runValidators(
+    positiveInteger(form.bursa_id, "Bursa"),
+    requiredText(form.motivimi, "Motivimi")
+  );
+
+export const validateInternshipForm = (form) =>
+  runValidators(
+    requiredText(form.kompania, "Kompania"),
+    requiredText(form.pozita, "Pozita"),
+    requiredText(form.pershkrimi, "Pershkrimi"),
+    requiredText(form.lokacioni, "Lokacioni"),
+    requiredText(form.kompensimi, "Kompensimi"),
+    requiredText(form.lloji, "Lloji"),
+    validDate(form.afati_aplikimit, "Afati i aplikimit"),
+    requiredText(form.statusi, "Statusi")
+  );
+
+export const validateInternshipApplicationForm = (form) =>
+  runValidators(
+    positiveInteger(form.praktika_id, "Praktika"),
+    requiredText(form.mesazh, "Mesazhi")
+  );
+
+export const validateErasmusForm = (form) =>
+  runValidators(
+    requiredText(form.universiteti, "Universiteti"),
+    requiredText(form.shteti, "Shteti"),
+    requiredText(form.semestri, "Semestri"),
+    requiredText(form.viti_akademik, "Viti akademik"),
+    requiredText(form.financimi, "Financimi"),
+    requiredText(form.pershkrimi, "Pershkrimi"),
+    validDate(form.afati_aplikimit, "Afati i aplikimit"),
+    requiredText(form.statusi, "Statusi")
+  );
+
+export const validateErasmusApplicationForm = (form) =>
+  runValidators(
+    positiveInteger(form.erasmus_id, "Programi Erasmus"),
+    requiredText(form.motivimi, "Motivimi")
+  );
+
+export const validateRegistrationDocumentForm = (form) =>
+  runValidators(
+    requiredText(form.emri_dokumentit, "Emri i dokumentit"),
+    form.file ? null : "Skedari eshte i detyrueshem."
+  );
+
+export const validateStudentDocumentForm = (form) =>
+  runValidators(
+    requiredText(form.lloji_dokumentit, "Lloji i dokumentit"),
+    form.file ? null : "Skedari eshte i detyrueshem."
   );
 
 export const validateProvimiForm = (form) =>

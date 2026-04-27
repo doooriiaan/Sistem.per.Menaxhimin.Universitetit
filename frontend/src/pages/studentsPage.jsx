@@ -8,8 +8,11 @@ import {
 } from "../utils/buttonStyles";
 import {
   GENDER_OPTIONS,
+  STUDENT_DOCUMENT_TYPE_OPTIONS,
   STUDY_YEAR_OPTIONS,
 } from "../utils/formOptions";
+import { formatFileSize } from "../utils/display";
+import { fileToPayload } from "../utils/files";
 import {
   buildLookup,
   formatDateInputValue,
@@ -18,7 +21,11 @@ import {
   normalizeFormValue,
 } from "../utils/relations";
 import { matchesSearchTerm, paginateItems } from "../utils/table";
-import { getApiErrorMessage, validateStudentForm } from "../utils/validation";
+import {
+  getApiErrorMessage,
+  validateStudentDocumentForm,
+  validateStudentForm,
+} from "../utils/validation";
 
 const emptyForm = {
   emri: "",
@@ -30,6 +37,7 @@ const emptyForm = {
   telefoni: "",
   adresa: "",
   drejtimi_id: "",
+  gjenerata_id: "",
   viti_studimit: 1,
   statusi: "Aktiv",
 };
@@ -37,6 +45,7 @@ const emptyForm = {
 function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [drejtimet, setDrejtimet] = useState([]);
+  const [gjeneratat, setGjeneratat] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,12 +55,24 @@ function StudentsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [documentModalStudent, setDocumentModalStudent] = useState(null);
+  const [studentDocuments, setStudentDocuments] = useState([]);
+  const [documentForm, setDocumentForm] = useState({
+    lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,
+    file: null,
+    fileName: "",
+  });
 
   const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const drejtimetLookup = buildLookup(
     drejtimet,
     "drejtim_id",
     (drejtimi) => drejtimi.emri
+  );
+  const gjeneratatLookup = buildLookup(
+    gjeneratat,
+    "gjenerata_id",
+    (gjenerata) => gjenerata.emri
   );
 
   const filteredStudents = students.filter((student) => {
@@ -69,6 +90,7 @@ function StudentsPage() {
           student.email,
           student.telefoni,
           getLabelById(drejtimetLookup, student.drejtimi_id, "Drejtimi"),
+          getLabelById(gjeneratatLookup, student.gjenerata_id, "Gjenerata"),
           student.statusi,
         ],
         deferredSearchTerm
@@ -89,13 +111,15 @@ function StudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const [studentsRes, drejtimetRes] = await Promise.all([
+      const [studentsRes, drejtimetRes, gjeneratatRes] = await Promise.all([
         API.get("/studentet"),
         API.get("/drejtimet"),
+        API.get("/gjeneratat"),
       ]);
 
       setStudents(studentsRes.data);
       setDrejtimet(drejtimetRes.data);
+      setGjeneratat(gjeneratatRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -124,6 +148,7 @@ function StudentsPage() {
     setForm({
       ...emptyForm,
       drejtimi_id: getDefaultId(drejtimet, "drejtim_id"),
+      gjenerata_id: getDefaultId(gjeneratat, "gjenerata_id"),
     });
     setShowModal(true);
     setError("");
@@ -141,6 +166,7 @@ function StudentsPage() {
       telefoni: student.telefoni || "",
       adresa: student.adresa || "",
       drejtimi_id: student.drejtimi_id || 1,
+      gjenerata_id: student.gjenerata_id || "",
       viti_studimit: student.viti_studimit || 1,
       statusi: student.statusi || "Aktiv",
     });
@@ -152,6 +178,85 @@ function StudentsPage() {
     setShowModal(false);
     setEditingStudent(null);
     setForm(emptyForm);
+  };
+
+  const fetchStudentDocuments = async (studentId) => {
+    try {
+      const response = await API.get(`/studentet/${studentId}/dokumentet`);
+      setStudentDocuments(response.data);
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, "Gabim gjate marrjes se dokumenteve te studentit.")
+      );
+    }
+  };
+
+  const openDocumentModal = async (student) => {
+    setDocumentModalStudent(student);
+    setDocumentForm({
+      lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,
+      file: null,
+      fileName: "",
+    });
+    setStudentDocuments([]);
+    await fetchStudentDocuments(student.student_id);
+  };
+
+  const closeDocumentModal = () => {
+    setDocumentModalStudent(null);
+    setStudentDocuments([]);
+    setDocumentForm({
+      lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,
+      file: null,
+      fileName: "",
+    });
+  };
+
+  const handleDocumentFileChange = async (event) => {
+    const selectedFile = event.target.files?.[0];
+
+    if (!selectedFile) {
+      return;
+    }
+
+    try {
+      const payload = await fileToPayload(selectedFile);
+      setDocumentForm((current) => ({
+        ...current,
+        file: payload,
+        fileName: selectedFile.name,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Skedari nuk mund te ngarkohet.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleDocumentUpload = async () => {
+    const validationError = validateStudentDocumentForm(documentForm);
+
+    if (validationError || !documentModalStudent) {
+      setError(validationError || "Studenti nuk u zgjodh.");
+      return;
+    }
+
+    try {
+      await API.post(`/studentet/${documentModalStudent.student_id}/dokumentet`, {
+        lloji_dokumentit: documentForm.lloji_dokumentit,
+        file: documentForm.file,
+      });
+      setDocumentForm({
+        lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,
+        file: null,
+        fileName: "",
+      });
+      await fetchStudentDocuments(documentModalStudent.student_id);
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err, "Gabim gjate ngarkimit te dokumentit te studentit.")
+      );
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -251,6 +356,7 @@ function StudentsPage() {
                     <th className="p-4 text-left">Email</th>
                     <th className="p-4 text-left">Telefoni</th>
                     <th className="p-4 text-left">Drejtimi</th>
+                    <th className="p-4 text-left">Gjenerata</th>
                     <th className="p-4 text-left">Viti</th>
                     <th className="p-4 text-left">Statusi</th>
                     <th className="p-4 text-left">Actions</th>
@@ -277,6 +383,13 @@ function StudentsPage() {
                             "Drejtimi"
                           )}
                         </td>
+                        <td className="p-4">
+                          {getLabelById(
+                            gjeneratatLookup,
+                            student.gjenerata_id,
+                            "Gjenerata"
+                          )}
+                        </td>
                         <td className="p-4">{student.viti_studimit}</td>
                         <td className="p-4">{student.statusi}</td>
                         <td className="p-4">
@@ -286,6 +399,12 @@ function StudentsPage() {
                               className={EDIT_ACTION_BUTTON_CLASS}
                             >
                               Update
+                            </button>
+                            <button
+                              onClick={() => openDocumentModal(student)}
+                              className="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-semibold border border-sky-200 hover:bg-sky-100 transition"
+                            >
+                              Dokumente
                             </button>
 
                             <button
@@ -301,7 +420,7 @@ function StudentsPage() {
                   ) : (
                     <tr>
                       <td
-                        colSpan="10"
+                        colSpan="11"
                         className="p-6 text-center text-slate-500"
                       >
                         Nuk u gjet asnje student per filtrat aktuale.
@@ -501,6 +620,28 @@ function StudentsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
+                  Gjenerata
+                </p>
+
+                <select
+                  name="gjenerata_id"
+                  value={form.gjenerata_id}
+                  onChange={handleChange}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                >
+                  <option value="">Zgjidh gjeneraten</option>
+                  {gjeneratat.map((gjenerata) => (
+                    <option
+                      key={gjenerata.gjenerata_id}
+                      value={gjenerata.gjenerata_id}
+                    >
+                      {gjenerata.emri}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">
                   Statusi
                 </p>
 
@@ -533,6 +674,105 @@ function StudentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {documentModalStudent && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-[28px] p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">
+                  Dokumentet baze te {documentModalStudent.emri}{" "}
+                  {documentModalStudent.mbiemri}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Certifikata e lindjes, dokumentet e shkolles dhe dosja percjellese.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDocumentModal}
+                className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700"
+              >
+                Mbyll
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-3">
+                {studentDocuments.length > 0 ? (
+                  studentDocuments.map((document) => (
+                    <a
+                      key={document.dokument_id}
+                      href={document.download_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+                    >
+                      <p className="font-semibold text-slate-900">
+                        {document.lloji_dokumentit}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {document.original_name} | {formatFileSize(document.file_size)}
+                      </p>
+                    </a>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                    Nuk ka dokumente te ngarkuara ende.
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 mb-3">
+                  Ngarko dokument te ri
+                </p>
+
+                <div className="space-y-3">
+                  <select
+                    value={documentForm.lloji_dokumentit}
+                    onChange={(event) =>
+                      setDocumentForm((current) => ({
+                        ...current,
+                        lloji_dokumentit: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  >
+                    {STUDENT_DOCUMENT_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label className="block rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600">
+                    Zgjidh dokumentin nga kompjuteri
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      onChange={handleDocumentFileChange}
+                    />
+                  </label>
+
+                  {documentForm.fileName && (
+                    <p className="text-xs text-slate-500">{documentForm.fileName}</p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleDocumentUpload}
+                    className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    Ngarko dokumentin
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
