@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { EmptyState, InlineAlert, SkeletonRows } from "../components/ui/Feedback";
+import { PageHeader, SectionNav, StatCard, SurfaceCard } from "../components/ui/Layout";
+import StatusBadge from "../components/ui/StatusBadge";
 import API from "../services/api";
 import { formatAverageLabel, formatDateLabel } from "../utils/display";
+import { getRoleConnections } from "../utils/navigation";
 import { getApiErrorMessage } from "../utils/validation";
 
 function StudentGradesPage() {
@@ -9,95 +14,153 @@ function StudentGradesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     const fetchGrades = async () => {
       try {
         setLoading(true);
         const response = await API.get("/student/notat");
-        setGrades(response.data);
-        setError("");
+
+        if (active) {
+          setGrades(response.data || []);
+          setError("");
+        }
       } catch (err) {
-        setError(getApiErrorMessage(err, "Gabim gjate marrjes se notave."));
+        if (active) {
+          setError(getApiErrorMessage(err, "Gabim gjate marrjes se notave."));
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     fetchGrades();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const average = useMemo(() => {
-    if (grades.length === 0) {
+    if (!grades.length) {
       return null;
     }
 
-    const total = grades.reduce((sum, grade) => sum + Number(grade.nota), 0);
-    return total / grades.length;
+    return grades.reduce((sum, grade) => sum + Number(grade.nota || 0), 0) / grades.length;
   }, [grades]);
 
+  const bestGrade = useMemo(() => {
+    if (!grades.length) {
+      return "-";
+    }
+
+    return Math.max(...grades.map((grade) => Number(grade.nota || 0)));
+  }, [grades]);
+
+  const latestGrade = grades[0];
+
+  if (loading) {
+    return <SkeletonRows count={4} />;
+  }
+
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Notat e mia</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Te gjitha rezultatet e regjistruara per ty.
-          </p>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Student Grades"
+        title="Notat e mia"
+        description="Pamje e plote e rezultateve te publikuara, me lidhje direkte drejt profilit dhe regjistrimeve."
+        actions={
+          <>
+            <Link
+              to="/student/profili"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-slate-300"
+            >
+              Kthehu te profili
+            </Link>
+            <Link
+              to="/student/regjistrimet"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-950 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800"
+            >
+              Shko te regjistrimet
+            </Link>
+          </>
+        }
+      />
+
+      <SectionNav items={getRoleConnections("student")} />
+
+      {error ? <InlineAlert>{error}</InlineAlert> : null}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          icon="graduation"
+          label="Mesatarja aktuale"
+          value={formatAverageLabel(average)}
+          tone="accent"
+        />
+        <StatCard icon="chart" label="Nota me e larte" value={bestGrade} />
+        <StatCard
+          icon="calendar"
+          label="Publikimi i fundit"
+          value={latestGrade ? formatDateLabel(latestGrade.data_vendosjes) : "-"}
+          tone="dark"
+        />
+      </section>
+
+      <SurfaceCard>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">Tabela e rezultateve</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Cdo note eshte e lidhur me lenden, profesorin dhe afatin perkates.
+            </p>
+          </div>
+          <StatusBadge tone="info">{grades.length} rezultate</StatusBadge>
         </div>
 
-        <div className="rounded-2xl bg-slate-900 px-5 py-4 text-white">
-          <p className="text-sm text-slate-400">Mesatarja aktuale</p>
-          <p className="mt-2 text-2xl font-bold">{formatAverageLabel(average)}</p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <p className="mt-6 text-sm text-slate-500">Duke i ngarkuar notat...</p>
-      ) : grades.length > 0 ? (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="pb-3 font-medium">Lenda</th>
-                <th className="pb-3 font-medium">Profesori</th>
-                <th className="pb-3 font-medium">Provimi</th>
-                <th className="pb-3 font-medium">Nota</th>
-                <th className="pb-3 font-medium">Vendosur me</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grades.map((grade) => (
-                <tr key={grade.nota_id} className="border-b border-slate-100">
-                  <td className="py-3 text-slate-900">
-                    {grade.lenda} ({grade.kodi})
-                  </td>
-                  <td className="py-3 text-slate-600">{grade.profesori || "-"}</td>
-                  <td className="py-3 text-slate-600">
-                    {formatDateLabel(grade.data_provimit)} | {grade.afati}
-                  </td>
-                  <td className="py-3">
-                    <span className="rounded-full bg-slate-900 px-3 py-1 text-white">
-                      {grade.nota}
-                    </span>
-                  </td>
-                  <td className="py-3 text-slate-600">
-                    {formatDateLabel(grade.data_vendosjes)}
-                  </td>
+        {grades.length ? (
+          <div className="overflow-x-auto">
+            <table className="data-table min-w-full">
+              <thead>
+                <tr>
+                  <th>Lenda</th>
+                  <th>Profesori</th>
+                  <th>Provimi</th>
+                  <th>Nota</th>
+                  <th>Vendosur me</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-          Nuk ka nota te regjistruara aktualisht.
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {grades.map((grade) => (
+                  <tr key={grade.nota_id}>
+                    <td>
+                      <div>
+                        <p className="font-semibold text-slate-900">{grade.lenda}</p>
+                        <p className="mt-1 text-xs text-slate-500">{grade.kodi}</p>
+                      </div>
+                    </td>
+                    <td>{grade.profesori || "-"}</td>
+                    <td>
+                      {formatDateLabel(grade.data_provimit)} | {grade.afati}
+                    </td>
+                    <td>
+                      <StatusBadge tone="dark">{grade.nota}</StatusBadge>
+                    </td>
+                    <td>{formatDateLabel(grade.data_vendosjes)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            title="Nuk ka nota te regjistruara"
+            description="Kur te publikohen rezultatet e para, tabela do te shfaqe te gjitha vleresimet e lidhura me lendet e tua."
+          />
+        )}
+      </SurfaceCard>
     </div>
   );
 }

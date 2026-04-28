@@ -1,11 +1,11 @@
 import { useDeferredValue, useEffect, useState } from "react";
+import Button from "../components/ui/Button";
+import { EmptyState, SkeletonRows } from "../components/ui/Feedback";
+import StatusBadge from "../components/ui/StatusBadge";
+import { useToast } from "../components/ui/ToastProvider";
 import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
-import {
-  DELETE_ACTION_BUTTON_CLASS,
-  EDIT_ACTION_BUTTON_CLASS,
-} from "../utils/buttonStyles";
 import {
   GENDER_OPTIONS,
   STUDENT_DOCUMENT_TYPE_OPTIONS,
@@ -26,6 +26,7 @@ import {
   validateStudentDocumentForm,
   validateStudentForm,
 } from "../utils/validation";
+import { getResponseMessage } from "../services/api";
 
 const emptyForm = {
   emri: "",
@@ -43,6 +44,7 @@ const emptyForm = {
 };
 
 function StudentsPage() {
+  const { notifyError, notifySuccess } = useToast();
   const [students, setStudents] = useState([]);
   const [drejtimet, setDrejtimet] = useState([]);
   const [gjeneratat, setGjeneratat] = useState([]);
@@ -123,7 +125,9 @@ function StudentsPage() {
       setError("");
     } catch (err) {
       console.error(err);
-      setError(getApiErrorMessage(err, "Gabim gjate marrjes se studenteve."));
+      const message = getApiErrorMessage(err, "Gabim gjate marrjes se studenteve.");
+      setError(message);
+      notifyError(message);
     } finally {
       setLoading(false);
     }
@@ -227,7 +231,10 @@ function StudentsPage() {
         fileName: selectedFile.name,
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Skedari nuk mund te ngarkohet.");
+      const message =
+        err instanceof Error ? err.message : "Skedari nuk mund te ngarkohet.";
+      setError(message);
+      notifyError(message);
     } finally {
       event.target.value = "";
     }
@@ -237,12 +244,14 @@ function StudentsPage() {
     const validationError = validateStudentDocumentForm(documentForm);
 
     if (validationError || !documentModalStudent) {
-      setError(validationError || "Studenti nuk u zgjodh.");
+      const message = validationError || "Studenti nuk u zgjodh.";
+      setError(message);
+      notifyError(message);
       return;
     }
 
     try {
-      await API.post(`/studentet/${documentModalStudent.student_id}/dokumentet`, {
+      const response = await API.post(`/studentet/${documentModalStudent.student_id}/dokumentet`, {
         lloji_dokumentit: documentForm.lloji_dokumentit,
         file: documentForm.file,
       });
@@ -252,10 +261,17 @@ function StudentsPage() {
         fileName: "",
       });
       await fetchStudentDocuments(documentModalStudent.student_id);
-    } catch (err) {
-      setError(
-        getApiErrorMessage(err, "Gabim gjate ngarkimit te dokumentit te studentit.")
+      notifySuccess(
+        getResponseMessage(response, "Dokumenti u ngarkua me sukses."),
+        "Dokumenti u ruajt"
       );
+    } catch (err) {
+      const message = getApiErrorMessage(
+        err,
+        "Gabim gjate ngarkimit te dokumentit te studentit."
+      );
+      setError(message);
+      notifyError(message);
     }
   };
 
@@ -265,38 +281,50 @@ function StudentsPage() {
 
     if (validationError) {
       setError(validationError);
+      notifyError(validationError);
       return;
     }
 
     try {
+      let response;
       if (editingStudent) {
-        await API.put(`/studentet/${editingStudent.student_id}`, form);
+        response = await API.put(`/studentet/${editingStudent.student_id}`, form);
       } else {
-        await API.post("/studentet", form);
+        response = await API.post("/studentet", form);
       }
 
       closeModal();
       fetchStudents();
+      notifySuccess(
+        getResponseMessage(response, "Studenti u ruajt me sukses."),
+        editingStudent ? "Studenti u perditesua" : "Student i ri"
+      );
     } catch (err) {
       console.error(err);
-      setError(
-        getApiErrorMessage(
-          err,
-          editingStudent
-            ? "Gabim gjate perditesimit te studentit."
-            : "Gabim gjate shtimit te studentit."
-        )
+      const message = getApiErrorMessage(
+        err,
+        editingStudent
+          ? "Gabim gjate perditesimit te studentit."
+          : "Gabim gjate shtimit te studentit."
       );
+      setError(message);
+      notifyError(message);
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      await API.delete(`/studentet/${id}`);
+      const response = await API.delete(`/studentet/${id}`);
       fetchStudents();
+      notifySuccess(
+        getResponseMessage(response, "Studenti u fshi me sukses."),
+        "Studenti u hoq"
+      );
     } catch (err) {
       console.error(err);
-      setError(getApiErrorMessage(err, "Gabim gjate fshirjes se studentit."));
+      const message = getApiErrorMessage(err, "Gabim gjate fshirjes se studentit.");
+      setError(message);
+      notifyError(message);
     }
   };
 
@@ -313,9 +341,9 @@ function StudentsPage() {
 
           <button
             onClick={openAddModal}
-            className="bg-slate-900 text-white px-5 py-3.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition"
+                    className="rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            + Shto Student
+            + Shto student
           </button>
         </div>
 
@@ -326,7 +354,7 @@ function StudentsPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-500">Duke i marre studentet...</p>
+          <SkeletonRows count={4} />
         ) : (
           <>
             <TableToolbar
@@ -391,39 +419,47 @@ function StudentsPage() {
                           )}
                         </td>
                         <td className="p-4">{student.viti_studimit}</td>
-                        <td className="p-4">{student.statusi}</td>
+                        <td className="p-4">
+                          <StatusBadge>{student.statusi}</StatusBadge>
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <button
+                            <Button
                               onClick={() => openEditModal(student)}
-                              className={EDIT_ACTION_BUTTON_CLASS}
+                              size="sm"
+                              variant="secondary"
+                              icon="edit"
                             >
-                              Update
-                            </button>
-                            <button
+                              Edito
+                            </Button>
+                            <Button
                               onClick={() => openDocumentModal(student)}
-                              className="px-3 py-2 rounded-lg bg-sky-50 text-sky-700 text-xs font-semibold border border-sky-200 hover:bg-sky-100 transition"
+                              size="sm"
+                              variant="success"
+                              icon="file"
                             >
                               Dokumente
-                            </button>
+                            </Button>
 
-                            <button
+                            <Button
                               onClick={() => handleDelete(student.student_id)}
-                              className={DELETE_ACTION_BUTTON_CLASS}
+                              size="sm"
+                              variant="danger"
+                              icon="trash"
                             >
-                              Delete
-                            </button>
+                              Fshij
+                            </Button>
                           </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td
-                        colSpan="11"
-                        className="p-6 text-center text-slate-500"
-                      >
-                        Nuk u gjet asnje student per filtrat aktuale.
+                      <td colSpan="11" className="p-6">
+                        <EmptyState
+                          title="Nuk u gjet asnje student"
+                          description="Provo nje kombinim tjeter kerkimi ose filtri per te pare rezultate."
+                        />
                       </td>
                     </tr>
                   )}
@@ -447,7 +483,7 @@ function StudentsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4 text-slate-800">
-              {editingStudent ? "Edit Student" : "Shto Student"}
+              {editingStudent ? "Edito studentin" : "Shto student"}
             </h3>
 
             {error && (
@@ -663,14 +699,14 @@ function StudentsPage() {
                   onClick={closeModal}
                   className="px-4 py-2 rounded-xl bg-slate-200 text-slate-700"
                 >
-                  Cancel
+                  Anulo
                 </button>
 
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  {editingStudent ? "Update" : "Save"}
+                  Ruaj
                 </button>
               </div>
             </form>

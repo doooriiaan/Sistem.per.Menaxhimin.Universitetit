@@ -6,6 +6,7 @@ const studentOpportunitiesController = require("../controllers/studentOpportunit
 const router = express.Router();
 
 router.get("/profili", studentPortalController.getProfile);
+router.get("/profili/overview", studentPortalController.getProfileOverview);
 router.get("/notat", studentPortalController.getGrades);
 router.get("/regjistrimet", studentPortalController.getEnrollments);
 router.get("/dokumentet", studentServicesController.getStudentBaseDocuments);

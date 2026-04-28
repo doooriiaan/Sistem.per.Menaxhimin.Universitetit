@@ -24,10 +24,15 @@ const oraretRoutes = require("./routes/oraretRoutes");
 const njoftimetRoutes = require("./routes/njoftimetRoutes");
 const profesorPortalRoutes = require("./routes/profesorPortalRoutes");
 const studentPortalRoutes = require("./routes/studentPortalRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 const {
   authenticateToken,
   authorizeRoles,
 } = require("./middleware/authMiddleware");
+const {
+  errorHandler,
+  notFoundHandler,
+} = require("./middleware/errorMiddleware");
 const { FRONTEND_ORIGINS } = require("./utils/authConfig");
 const { ensureAuthSetup } = require("./utils/authSetup");
 const { ensureUniversitySetup } = require("./utils/universitySetup");
@@ -154,6 +159,14 @@ app.use(
   authorizeRoles("student"),
   studentPortalRoutes
 );
+app.use(
+  "/api/analytics",
+  authenticateToken,
+  authorizeRoles("admin"),
+  analyticsRoutes
+);
+app.use(notFoundHandler);
+app.use(errorHandler);
 const PORT = process.env.PORT || 5001;
 
 ensureAuthSetup()

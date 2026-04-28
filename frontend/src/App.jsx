@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import BackendStatusBanner from "./components/BackendStatusBanner";
+import FloatingBackButton from "./components/FloatingBackButton";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Topbar from "./components/Topbar";
@@ -85,6 +86,7 @@ function AppLayout() {
         isMobileOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
       />
+      <FloatingBackButton />
 
       <div className="flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:ml-[18.5rem] lg:px-6 lg:py-6">
         <div className="app-chrome min-h-[calc(100vh-1.5rem)] overflow-hidden rounded-[28px] sm:min-h-[calc(100vh-2rem)] sm:rounded-[30px] lg:min-h-[calc(100vh-3rem)] lg:rounded-[34px]">

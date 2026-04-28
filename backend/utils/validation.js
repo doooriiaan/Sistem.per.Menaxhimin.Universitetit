@@ -43,7 +43,7 @@ const areTimesOrdered = (startTime, endTime) => {
 };
 
 const sendValidationError = (res, message) =>
-  res.status(400).json({ message });
+  res.status(400).json({ success: false, message });
 
 const getDuplicateEntryMessage = (err) => {
   const errorMessage = err?.sqlMessage || err?.message || "";
@@ -102,23 +102,27 @@ const handleDbError = (res, err, fallbackMessage) => {
 
   if (err.code === "ER_DUP_ENTRY") {
     return res.status(409).json({
+      success: false,
       message: getDuplicateEntryMessage(err),
     });
   }
 
   if (err.code === "ER_NO_REFERENCED_ROW_2" || err.code === "ER_NO_REFERENCED_ROW") {
     return res.status(400).json({
+      success: false,
       message: "Nje lidhje me nje rekord tjeter nuk eshte e vlefshme.",
     });
   }
 
   if (err.code === "ER_ROW_IS_REFERENCED_2" || err.code === "ER_ROW_IS_REFERENCED") {
     return res.status(409).json({
+      success: false,
       message: "Ky rekord nuk mund te fshihet sepse po perdoret nga te dhena te tjera.",
     });
   }
 
   return res.status(500).json({
+    success: false,
     message: fallbackMessage || "Ndodhi nje gabim ne databaze.",
   });
 };

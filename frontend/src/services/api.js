@@ -57,6 +57,22 @@ const normalizeAuthResponse = (data) => {
 const shouldSkipRefresh = (requestUrl = "") =>
   AUTH_ENDPOINTS.some((endpoint) => requestUrl.includes(endpoint));
 
+const normalizeSuccessPayload = (response) => {
+  const payload = response?.data;
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    payload.success === true &&
+    Object.prototype.hasOwnProperty.call(payload, "data")
+  ) {
+    response.api = payload;
+    response.data = payload.data;
+  }
+
+  return response;
+};
+
 const requestSessionRefresh = async () => {
   if (!refreshPromise) {
     refreshPromise = sessionClient
@@ -124,7 +140,7 @@ API.interceptors.request.use((config) => {
 API.interceptors.response.use(
   (response) => {
     emitBackendStatus("online");
-    return response;
+    return normalizeSuccessPayload(response);
   },
   async (error) => {
     const requestUrl = error.config?.url || "";
@@ -167,5 +183,10 @@ API.interceptors.response.use(
     }
   }
 );
+
+export const getResponseMessage = (
+  response,
+  fallbackMessage = "Veprimi u krye me sukses."
+) => response?.api?.message || response?.data?.message || fallbackMessage;
 
 export default API;

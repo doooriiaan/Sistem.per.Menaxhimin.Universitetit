@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import API from "../services/api";
 import {
   DELETE_ACTION_BUTTON_CLASS,
@@ -19,6 +20,8 @@ const emptyForm = {
 };
 
 function ProfessorExamsPage() {
+  const [searchParams] = useSearchParams();
+  const courseFilter = searchParams.get("course");
   const [courses, setCourses] = useState([]);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,14 @@ function ProfessorExamsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
   const [form, setForm] = useState(emptyForm);
+
+  const filteredExams = useMemo(() => {
+    if (!courseFilter) {
+      return exams;
+    }
+
+    return exams.filter((exam) => String(exam.lende_id) === String(courseFilter));
+  }, [courseFilter, exams]);
 
   const fetchData = async () => {
     try {
@@ -62,7 +73,7 @@ function ProfessorExamsPage() {
     setEditingExam(null);
     setForm({
       ...emptyForm,
-      lende_id: courses[0]?.lende_id || "",
+      lende_id: courseFilter || courses[0]?.lende_id || "",
     });
     setShowModal(true);
   };
@@ -130,7 +141,9 @@ function ProfessorExamsPage() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Provimet e mia</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Krijo dhe menaxho provimet vetem per lendet e tua.
+            {courseFilter
+              ? "Po shikon provimet e lendes se zgjedhur nga moduli i lendeve."
+              : "Krijo dhe menaxho provimet vetem per lendet e tua."}
           </p>
         </div>
 
@@ -151,7 +164,7 @@ function ProfessorExamsPage() {
 
       {loading ? (
         <p className="mt-6 text-sm text-slate-500">Duke i ngarkuar provimet...</p>
-      ) : exams.length > 0 ? (
+      ) : filteredExams.length > 0 ? (
         <div className="mt-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -166,7 +179,7 @@ function ProfessorExamsPage() {
               </tr>
             </thead>
             <tbody>
-              {exams.map((exam) => (
+              {filteredExams.map((exam) => (
                 <tr key={exam.provimi_id} className="border-b border-slate-100">
                   <td className="py-3 text-slate-900">
                     {exam.lenda} ({exam.kodi})
@@ -185,14 +198,14 @@ function ProfessorExamsPage() {
                         onClick={() => openEditModal(exam)}
                         className={EDIT_ACTION_BUTTON_CLASS}
                       >
-                        Update
+                        Edito
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(exam.provimi_id)}
                         className={DELETE_ACTION_BUTTON_CLASS}
                       >
-                        Delete
+                        Fshij
                       </button>
                     </div>
                   </td>
@@ -203,7 +216,9 @@ function ProfessorExamsPage() {
         </div>
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-          Nuk ka provime te krijuara aktualisht.
+          {courseFilter
+            ? "Nuk ka provime per lenden e filtruar aktualisht."
+            : "Nuk ka provime te krijuara aktualisht."}
         </div>
       )}
 
@@ -290,7 +305,7 @@ function ProfessorExamsPage() {
                   onClick={closeModal}
                   className="rounded-xl bg-slate-200 px-4 py-2 text-slate-700"
                 >
-                  Cancel
+                  Anulo
                 </button>
                 <button
                   type="submit"

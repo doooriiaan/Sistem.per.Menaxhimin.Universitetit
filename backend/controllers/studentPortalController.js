@@ -1,4 +1,6 @@
 const db = require("../db");
+const { sendSuccess } = require("../utils/apiResponse");
+const { buildFileUrl } = require("../utils/fileStorage");
 const { handleDbError } = require("../utils/validation");
 
 const connection = db.promise();
@@ -177,6 +179,57 @@ const getStudentSchedule = async (studentId) => {
   return rows;
 };
 
+const getStudentDocuments = async (studentId, req) => {
+  const [rows] = await connection.query(
+    `
+      SELECT *
+      FROM student_dokumentet
+      WHERE student_id = ?
+      ORDER BY uploaded_at DESC
+    `,
+    [studentId]
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    download_url: buildFileUrl(req, row.file_path),
+  }));
+};
+
+const getAcademicHistory = async (studentId) => {
+  const [rows] = await connection.query(
+    `
+      SELECT
+        history.viti_akademik,
+        history.semestri,
+        COUNT(*) AS total_courses,
+        ROUND(AVG(history.final_grade), 2) AS average_grade,
+        SUM(CASE WHEN history.final_grade >= 6 THEN 1 ELSE 0 END) AS passed_courses,
+        SUM(CASE WHEN history.final_grade IS NULL OR history.final_grade < 6 THEN 1 ELSE 0 END) AS open_courses
+      FROM (
+        SELECT
+          r.regjistrimi_id,
+          r.viti_akademik,
+          r.semestri,
+          (
+            SELECT MAX(n.nota)
+            FROM provimet p
+            JOIN notat n ON n.provimi_id = p.provimi_id
+            WHERE p.lende_id = r.lende_id
+              AND n.student_id = r.student_id
+          ) AS final_grade
+        FROM regjistrimet r
+        WHERE r.student_id = ?
+      ) AS history
+      GROUP BY history.viti_akademik, history.semestri
+      ORDER BY history.viti_akademik DESC, history.semestri DESC
+    `,
+    [studentId]
+  );
+
+  return rows;
+};
+
 const getProfile = async (req, res) => {
   try {
     const data = await getStudentProfile(req.user.student_id);
@@ -227,10 +280,50 @@ const getSchedule = async (req, res) => {
   }
 };
 
+const getProfileOverview = async (req, res) => {
+  try {
+    const studentId = req.user.student_id;
+    const [profileData, grades, enrollments, documents, history] = await Promise.all(
+      [
+        getStudentProfile(studentId),
+        getStudentGrades(studentId),
+        getStudentEnrollments(studentId),
+        getStudentDocuments(studentId, req),
+        getAcademicHistory(studentId),
+      ]
+    );
+
+    if (!profileData.profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profili nuk u gjet.",
+      });
+    }
+
+    return sendSuccess(res, {
+      message: "Profili i plote i studentit u mor me sukses.",
+      data: {
+        ...profileData,
+        grades,
+        enrollments,
+        documents,
+        history,
+      },
+    });
+  } catch (err) {
+    return handleDbError(
+      res,
+      err,
+      "Gabim gjate marrjes se profilit te plote te studentit."
+    );
+  }
+};
+
 module.exports = {
   getEnrollments,
   getExams,
   getGrades,
   getProfile,
+  getProfileOverview,
   getSchedule,
 };

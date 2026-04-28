@@ -1,8 +1,31 @@
 const utilityItems = [
   { path: "/njoftime", label: "Njoftime", icon: "bell" },
-  { path: "/raporte", label: "Raporte", icon: "chart" },
+  { path: "/raporte", label: "Analitika", icon: "chart" },
+  { path: "/llogaria", label: "Llogaria", icon: "settings" },
   { path: "/ndihme", label: "Ndihme", icon: "help" },
 ];
+
+const roleConnectionMap = {
+  admin: [
+    { to: "/", label: "Overview", icon: "grid" },
+    { to: "/raporte", label: "Analitika", icon: "chart" },
+    { to: "/studentet", label: "Studentet", icon: "users" },
+    { to: "/lendet", label: "Lendet", icon: "book" },
+    { to: "/sherbimet", label: "Sherbimet", icon: "file" },
+  ],
+  profesor: [
+    { to: "/profesor/lendet", label: "Lendet", icon: "book" },
+    { to: "/profesor/provimet", label: "Provimet", icon: "calendar" },
+    { to: "/profesor/notat", label: "Notat", icon: "graduation" },
+    { to: "/profesor/orari", label: "Orari", icon: "clock" },
+  ],
+  student: [
+    { to: "/student/profili", label: "Profili", icon: "user" },
+    { to: "/student/regjistrimet", label: "Regjistrimet", icon: "book" },
+    { to: "/student/notat", label: "Notat", icon: "graduation" },
+    { href: "/student/profili#documents", label: "Dokumentet", icon: "file" },
+  ],
+};
 
 const navigationByRole = {
   admin: [
@@ -55,13 +78,6 @@ const navigationByRole = {
         { path: "/erasmus", label: "Erasmus" },
       ],
     },
-    {
-      id: "admin-account",
-      label: "Profili",
-      description: "Llogaria dhe te dhenat personale.",
-      icon: "shield",
-      items: [{ path: "/llogaria", label: "Llogaria" }],
-    },
   ],
   profesor: [
     {
@@ -84,13 +100,6 @@ const navigationByRole = {
         { path: "/profesor/provimet", label: "Provimet e Mia" },
         { path: "/profesor/orari", label: "Orari Im" },
       ],
-    },
-    {
-      id: "profesor-account",
-      label: "Profili",
-      description: "Llogaria dhe qasja personale.",
-      icon: "shield",
-      items: [{ path: "/llogaria", label: "Llogaria" }],
     },
   ],
   student: [
@@ -129,13 +138,6 @@ const navigationByRole = {
         { path: "/student/erasmus", label: "Erasmus" },
       ],
     },
-    {
-      id: "student-account",
-      label: "Profili",
-      description: "Llogaria dhe cilesimet personale.",
-      icon: "shield",
-      items: [{ path: "/llogaria", label: "Llogaria" }],
-    },
   ],
 };
 
@@ -153,6 +155,10 @@ function getUtilityItems() {
   return utilityItems;
 }
 
+function getRoleConnections(role) {
+  return roleConnectionMap[role] || roleConnectionMap.student;
+}
+
 function isPathActive(pathname, path) {
   return pathname === path;
 }
@@ -163,6 +169,7 @@ function isGroupActive(pathname, group) {
 
 export {
   getNavigationGroups,
+  getRoleConnections,
   getUtilityItems,
   isGroupActive,
   isPathActive,

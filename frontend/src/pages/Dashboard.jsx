@@ -1,528 +1,409 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { EmptyState, InlineAlert, SkeletonRows } from "../components/ui/Feedback";
+import { PageHeader, SectionNav, StatCard, SurfaceCard } from "../components/ui/Layout";
+import StatusBadge from "../components/ui/StatusBadge";
 import API from "../services/api";
 import { formatDateLabel, formatTimeLabel } from "../utils/display";
+import { getRoleConnections } from "../utils/navigation";
 import { getApiErrorMessage } from "../utils/validation";
-
-const adminCards = [
-  { key: "students", label: "Studentet", path: "/studentet" },
-  { key: "profesoret", label: "Profesoret", path: "/profesoret" },
-  { key: "gjeneratat", label: "Gjeneratat", path: "/gjeneratat" },
-  { key: "lendet", label: "Lendet", path: "/lendet" },
-  { key: "provimet", label: "Provimet", path: "/provimet" },
-  { key: "regjistrimet", label: "Regjistrimet", path: "/regjistrimet" },
-  { key: "kerkesat_sherbimeve", label: "Sherbimet", path: "/sherbimet" },
-  { key: "rindjekjet", label: "Rindjekje", path: "/rindjekjet" },
-  { key: "bursat", label: "Bursat", path: "/bursat" },
-  { key: "praktikat", label: "Internships", path: "/praktikat" },
-  { key: "erasmus", label: "Erasmus", path: "/erasmus" },
-];
-
-const emptyDashboard = {};
-
-function EmptyState({ message }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-      {message}
-    </div>
-  );
-}
-
-function SectionCard({ title, subtitle, children }) {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5">
-        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function Dashboard() {
   const { user } = useAuth();
-  const [dashboard, setDashboard] = useState(emptyDashboard);
+  const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchDashboard = async () => {
-    try {
-      setLoading(true);
-      const response = await API.get("/auth/dashboard");
-      setDashboard(response.data);
-      setError("");
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Gabim gjate marrjes se dashboard-it."));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let active = true;
+
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        const response = await API.get("/auth/dashboard");
+
+        if (active) {
+          setDashboard(response.data);
+          setError("");
+        }
+      } catch (err) {
+        if (active) {
+          setError(getApiErrorMessage(err, "Gabim gjate marrjes se dashboard-it."));
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchDashboard();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
-        Duke ngarkuar dashboard-in...
-      </div>
-    );
-  }
+  const roleConnections = getRoleConnections(user?.roli);
 
-  if (error) {
-    return (
-      <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-red-700">
-        <p className="font-semibold">{error}</p>
-        <button
-          type="button"
-          onClick={fetchDashboard}
-          className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
-        >
-          Provo perseri
-        </button>
-      </div>
-    );
-  }
+  const studentHighlights = useMemo(
+    () => [
+      {
+        label: "Mesatarja",
+        value:
+          dashboard?.summary?.mesatarja === null ||
+          dashboard?.summary?.mesatarja === undefined
+            ? "-"
+            : Number(dashboard.summary.mesatarja).toFixed(2),
+        icon: "graduation",
+        tone: "accent",
+      },
+      {
+        label: "Regjistrimet aktive",
+        value: dashboard?.enrollments?.length || 0,
+        icon: "book",
+      },
+      {
+        label: "Provimet e lidhura",
+        value: dashboard?.exams?.length || 0,
+        icon: "calendar",
+      },
+      {
+        label: "Kerkesa sherbimesh",
+        value: dashboard?.summary?.total_kerkesave_sherbimeve || 0,
+        icon: "file",
+        tone: "dark",
+      },
+    ],
+    [dashboard]
+  );
 
-  if (user?.roli === "admin") {
-    return (
-      <div className="space-y-6">
-        <div className="rounded-3xl bg-slate-900 p-8 text-white text-center">
-          <p className="text-sm uppercase tracking-[0.25em] text-slate-400">
-            Paneli i administratorit
-          </p>
-          <h2 className="mt-3 text-4xl font-bold text-slate-100">Kontroll i plote i sistemit</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300 text-center mx-auto">
-            Menaxho studentet, profesoret, lendet, provimet dhe regjistrimet nga
-            i njejti panel. Te gjitha modulet CRUD jane te kufizuara vetem per
-            administratorin.
-          </p>
-        </div>
+  const professorHighlights = useMemo(
+    () => [
+      {
+        label: "Lendet e mia",
+        value: dashboard?.courses?.length || 0,
+        icon: "book",
+        tone: "accent",
+      },
+      {
+        label: "Provimet",
+        value: dashboard?.exams?.length || 0,
+        icon: "calendar",
+      },
+      {
+        label: "Seanca ne orar",
+        value: dashboard?.schedule?.length || 0,
+        icon: "clock",
+      },
+    ],
+    [dashboard]
+  );
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {adminCards.map((card) => (
-            <Link
-              key={card.key}
-              to={card.path}
-              className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <p className="text-sm text-slate-500">{card.label}</p>
-              <h3 className="mt-3 text-3xl font-bold text-slate-900">
-                {dashboard.counts?.[card.key] ?? 0}
-              </h3>
-              <span className="mt-4 inline-block text-sm font-semibold text-slate-900">
-                Hape modulin
-              </span>
-            </Link>
-          ))}
-        </div>
-
-        <SectionCard
-          title="Qasja sipas roleve"
-          subtitle="Versioni i ri i autentikimit mbeshtet tri role te ndryshme."
-        >
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl bg-slate-100 p-5">
-              <p className="text-sm font-semibold text-slate-900">Admin</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Ka qasje ne te gjitha modulet CRUD dhe menaxhon te dhenat baze
-                te universitetit.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-5">
-              <p className="text-sm font-semibold text-slate-900">Profesor</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Mund te identifikohet dhe sheh dashboard-in me lendet,
-                provimet dhe orarin personal.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-5">
-              <p className="text-sm font-semibold text-slate-900">Student</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Mund te regjistrohet me email ekzistues dhe sheh notat,
-                provimet, orarin dhe regjistrimet personale.
-              </p>
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-    );
-  }
-
-  if (user?.roli === "profesor") {
-    return (
-      <div className="space-y-6">
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <SectionCard
-            title={`Mire se erdhe, ${dashboard.profile?.emri || user?.emri || "Profesor"}`}
-            subtitle="Pamje personale me te dhenat e tua akademike."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl bg-slate-100 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Email
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">
-                  {dashboard.profile?.email || "-"}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-100 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Departamenti
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">
-                  {dashboard.profile?.departamenti || "-"}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-100 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Titulli
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">
-                  {dashboard.profile?.titulli_akademik || "-"}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-100 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Specializimi
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">
-                  {dashboard.profile?.specializimi || "-"}
-                </p>
-              </div>
-            </div>
-          </SectionCard>
-
-          <div className="grid gap-4">
-            <div className="rounded-3xl bg-slate-900 p-5 text-white">
-              <p className="text-sm text-slate-400">Lendet e mia</p>
-              <h3 className="mt-3 text-3xl font-bold  text-slate-300">
-                {dashboard.courses?.length ?? 0}
-              </h3>
-            </div>
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Provimet e fundit</p>
-              <h3 className="mt-3 text-3xl font-bold text-slate-900">
-                {dashboard.exams?.length ?? 0}
-              </h3>
-            </div>
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Orari javor</p>
-              <h3 className="mt-3 text-3xl font-bold text-slate-900">
-                {dashboard.schedule?.length ?? 0}
-              </h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <SectionCard
-            title="Lendet e mia"
-            subtitle="Lista e lendeve ku je caktuar si profesor."
-          >
-            {dashboard.courses?.length ? (
-              <div className="space-y-3">
-                {dashboard.courses.map((course) => (
-                  <div
-                    key={course.lende_id}
-                    className="rounded-2xl border border-slate-200 px-4 py-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {course.emri}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {course.kodi} | Semestri {course.semestri}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                        {course.kreditet} kredi
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Nuk ka lende te lidhura me kete llogari." />
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Provimet e mia"
-            subtitle="Provimet me te fundit ku je caktuar si profesor."
-          >
-            {dashboard.exams?.length ? (
-              <div className="space-y-3">
-                {dashboard.exams.map((exam) => (
-                  <div
-                    key={exam.provimi_id}
-                    className="rounded-2xl border border-slate-200 px-4 py-4"
-                  >
-                    <p className="font-semibold text-slate-900">{exam.lenda}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {formatDateLabel(exam.data_provimit)} | {formatTimeLabel(exam.ora)} |
-                      {" "}
-                      {exam.salla} | {exam.afati}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Nuk ka provime te lidhura me kete llogari." />
-            )}
-          </SectionCard>
-        </div>
-
-        <SectionCard
-          title="Orari im"
-          subtitle="Seancat e ardhshme te mesimit sipas lendeve te tua."
-        >
-          {dashboard.schedule?.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="pb-3 font-medium">Lenda</th>
-                    <th className="pb-3 font-medium">Dita</th>
-                    <th className="pb-3 font-medium">Ora</th>
-                    <th className="pb-3 font-medium">Salla</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboard.schedule.map((item) => (
-                    <tr key={item.orari_id} className="border-b border-slate-100">
-                      <td className="py-3 text-slate-900">{item.lenda}</td>
-                      <td className="py-3 text-slate-600">{item.dita}</td>
-                      <td className="py-3 text-slate-600">
-                        {formatTimeLabel(item.ora_fillimit)} -{" "}
-                        {formatTimeLabel(item.ora_mbarimit)}
-                      </td>
-                      <td className="py-3 text-slate-600">{item.salla}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState message="Nuk ka orar te lidhur me kete llogari." />
-          )}
-        </SectionCard>
-      </div>
-    );
-  }
+  const adminHighlights = useMemo(
+    () => [
+      {
+        label: "Studentet",
+        value: dashboard?.counts?.students || 0,
+        icon: "users",
+        tone: "accent",
+      },
+      {
+        label: "Profesoret",
+        value: dashboard?.counts?.profesoret || 0,
+        icon: "user",
+      },
+      {
+        label: "Lendet",
+        value: dashboard?.counts?.lendet || 0,
+        icon: "book",
+      },
+      {
+        label: "Regjistrimet",
+        value: dashboard?.counts?.regjistrimet || 0,
+        icon: "graduation",
+      },
+      {
+        label: "Provimet",
+        value: dashboard?.counts?.provimet || 0,
+        icon: "calendar",
+        tone: "dark",
+      },
+      {
+        label: "Sherbimet",
+        value: dashboard?.counts?.kerkesat_sherbimeve || 0,
+        icon: "file",
+      },
+    ],
+    [dashboard]
+  );
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard
-          title={`Mire se erdhe, ${dashboard.profile?.emri || user?.emri || "Student"}`}
-          subtitle="Pamje personale me progresin tend akademik."
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl bg-slate-100 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Email
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {dashboard.profile?.email || "-"}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Drejtimi
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {dashboard.profile?.drejtimi || "-"}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Gjenerata
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {dashboard.profile?.gjenerata || "-"}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Fakulteti
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {dashboard.profile?.fakulteti || "-"}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Statusi
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {dashboard.profile?.statusi || "-"}
-              </p>
-            </div>
-          </div>
-        </SectionCard>
+      <PageHeader
+        eyebrow="University Control"
+        title={
+          user?.roli === "admin"
+            ? "Qendra e menaxhimit universitar"
+            : user?.roli === "profesor"
+              ? `Mire se erdhe, ${dashboard?.profile?.emri || user?.emri || "Profesor"}`
+              : `Mire se erdhe, ${dashboard?.profile?.emri || user?.emri || "Student"}`
+        }
+        description={
+          user?.roli === "admin"
+            ? "Pamja kryesore per kontrollin e sistemit, me akses te shpejte drejt moduleve, analitikes dhe proceseve akademike."
+            : user?.roli === "profesor"
+              ? "Menaxho lendet, studentet dhe vleresimet nga nje panel i vetem pune."
+              : "Ketu i ke te lidhura profili, regjistrimet, notat, provimet dhe dokumentet personale."
+        }
+        actions={
+          user?.roli === "admin" ? (
+            <Link
+              to="/raporte"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 hover:border-slate-300"
+            >
+              Hap analitiken
+            </Link>
+          ) : null
+        }
+      />
 
-        <div className="grid gap-4">
-          <div className="rounded-3xl bg-slate-900 p-5 text-white shadow-sm">
-            <p className="text-sm text-slate-400">Notat e fundit</p>
-            <h3 className="mt-3 text-3xl font-bold text-slate-100">
-              {dashboard.grades?.length ?? 0}
-            </h3>
-          </div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Regjistrimet</p>
-            <h3 className="mt-3 text-3xl font-bold text-slate-900">
-              {dashboard.enrollments?.length ?? 0}
-            </h3>
-          </div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Provimet e lidhura</p>
-            <h3 className="mt-3 text-3xl font-bold text-slate-900">
-              {dashboard.exams?.length ?? 0}
-            </h3>
-          </div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Kerkesa sherbimesh</p>
-            <h3 className="mt-3 text-3xl font-bold text-slate-900">
-              {dashboard.summary?.total_kerkesave_sherbimeve ?? 0}
-            </h3>
-          </div>
-          <div className="rounded-3xl bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Rindjekje</p>
-            <h3 className="mt-3 text-3xl font-bold text-slate-900">
-              {dashboard.summary?.total_rindjekjeve ?? 0}
-            </h3>
-          </div>
-        </div>
-      </div>
+      <SectionNav items={roleConnections} />
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Notat e mia"
-          subtitle="Rezultatet e fundit te regjistruara per ty."
-        >
-          {dashboard.grades?.length ? (
-            <div className="space-y-3">
-              {dashboard.grades.map((grade) => (
-                <div
-                  key={grade.nota_id}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-4"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-900">{grade.lenda}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {grade.profesori || "-"} | {formatDateLabel(grade.data_vendosjes)}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-slate-900 px-3 py-1 text-sm font-semibold text-white">
-                    {grade.nota}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="Nuk ka nota te lidhura me kete llogari." />
-          )}
-        </SectionCard>
+      {loading ? (
+        <SkeletonRows count={4} />
+      ) : error ? (
+        <InlineAlert>{error}</InlineAlert>
+      ) : user?.roli === "admin" ? (
+        <>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {adminHighlights.map((card) => (
+              <StatCard
+                key={card.label}
+                icon={card.icon}
+                label={card.label}
+                tone={card.tone}
+                value={card.value}
+              />
+            ))}
+          </section>
 
-        <SectionCard
-          title="Regjistrimet e mia"
-          subtitle="Lendet ku je regjistruar aktualisht."
-        >
-          {dashboard.enrollments?.length ? (
-            <div className="space-y-3">
-              {dashboard.enrollments.map((enrollment) => (
-                <div
-                  key={enrollment.regjistrimi_id}
-                  className="rounded-2xl border border-slate-200 px-4 py-4"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-slate-900">
-                        {enrollment.lenda}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {enrollment.kodi} | Semestri {enrollment.semestri} |{" "}
-                        {enrollment.viti_akademik}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {enrollment.statusi}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="Nuk ka regjistrime te lidhura me kete llogari." />
-          )}
-        </SectionCard>
-      </div>
+          <section className="grid gap-4 lg:grid-cols-3">
+            {[
+              {
+                path: "/studentet",
+                title: "Student pipeline",
+                body: "Kalo nga lista e studenteve ne profile, dokumente dhe historik akademik.",
+              },
+              {
+                path: "/regjistrimet",
+                title: "Registration control",
+                body: "Monitoro semestrat, statuset dhe ngarkesen e lendeve ne kohe reale.",
+              },
+              {
+                path: "/sherbimet",
+                title: "Service desk",
+                body: "Menaxho pagesat, dokumentet dhe kerkesat administrative nga i njejti vend.",
+              },
+            ].map((card) => (
+              <Link
+                key={card.path}
+                to={card.path}
+                className="rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_24px_46px_rgba(15,23,42,0.09)]"
+              >
+                <p className="text-lg font-bold text-slate-950">{card.title}</p>
+                <p className="mt-3 text-sm leading-6 text-slate-500">{card.body}</p>
+              </Link>
+            ))}
+          </section>
+        </>
+      ) : user?.roli === "profesor" ? (
+        <>
+          <section className="grid gap-4 md:grid-cols-3">
+            {professorHighlights.map((card) => (
+              <StatCard
+                key={card.label}
+                icon={card.icon}
+                label={card.label}
+                tone={card.tone}
+                value={card.value}
+              />
+            ))}
+          </section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <SectionCard
-          title="Provimet e mia"
-          subtitle="Provimet e lendeve ku je i regjistruar."
-        >
-          {dashboard.exams?.length ? (
-            <div className="space-y-3">
-              {dashboard.exams.map((exam) => (
-                <div
-                  key={exam.provimi_id}
-                  className="rounded-2xl border border-slate-200 px-4 py-4"
-                >
-                  <p className="font-semibold text-slate-900">{exam.lenda}</p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {formatDateLabel(exam.data_provimit)} | {formatTimeLabel(exam.ora)} |{" "}
-                    {exam.salla} | {exam.afati}
+          <section className="grid gap-6 xl:grid-cols-2">
+            <SurfaceCard>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Lendet e mia</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Hyrje direkte nga lenda te studentet dhe te moduli i notimit.
                   </p>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="Nuk ka provime te lidhura me kete llogari." />
-          )}
-        </SectionCard>
-
-        <SectionCard
-          title="Orari im"
-          subtitle="Orari i lendeve ku je i regjistruar."
-        >
-          {dashboard.schedule?.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-slate-500">
-                    <th className="pb-3 font-medium">Lenda</th>
-                    <th className="pb-3 font-medium">Dita</th>
-                    <th className="pb-3 font-medium">Ora</th>
-                    <th className="pb-3 font-medium">Salla</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboard.schedule.map((item) => (
-                    <tr key={item.orari_id} className="border-b border-slate-100">
-                      <td className="py-3 text-slate-900">{item.lenda}</td>
-                      <td className="py-3 text-slate-600">{item.dita}</td>
-                      <td className="py-3 text-slate-600">
-                        {formatTimeLabel(item.ora_fillimit)} -{" "}
-                        {formatTimeLabel(item.ora_mbarimit)}
-                      </td>
-                      <td className="py-3 text-slate-600">{item.salla}</td>
-                    </tr>
+                <Link to="/profesor/lendet" className="text-sm font-semibold text-teal-700">
+                  Menaxho
+                </Link>
+              </div>
+              {dashboard?.courses?.length ? (
+                <div className="space-y-3">
+                  {dashboard.courses.slice(0, 4).map((course) => (
+                    <div
+                      key={course.lende_id}
+                      className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{course.emri}</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {course.kodi} | Semestri {course.semestri}
+                          </p>
+                        </div>
+                        <StatusBadge tone="info">{course.kreditet} kredi</StatusBadge>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState message="Nuk ka orar te lidhur me kete llogari." />
-          )}
-        </SectionCard>
-      </div>
+                </div>
+              ) : (
+                <EmptyState
+                  title="Nuk ka lende te lidhura"
+                  description="Kur profili lidhet me lende aktive, ato do te shfaqen ketu."
+                />
+              )}
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Provimet e aferta</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Provimet me te fundit te caktuara ne kalendarin tend.
+                  </p>
+                </div>
+                <Link to="/profesor/provimet" className="text-sm font-semibold text-teal-700">
+                  Shiko te gjitha
+                </Link>
+              </div>
+              {dashboard?.exams?.length ? (
+                <div className="space-y-3">
+                  {dashboard.exams.slice(0, 4).map((exam) => (
+                    <div
+                      key={exam.provimi_id}
+                      className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4"
+                    >
+                      <p className="font-semibold text-slate-900">{exam.lenda}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {formatDateLabel(exam.data_provimit)} | {formatTimeLabel(exam.ora)} |{" "}
+                        {exam.salla}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="Nuk ka provime te planifikuara"
+                  description="Sapo te shtohen provime per lendet e tua, ato do te shfaqen ne kete seksion."
+                />
+              )}
+            </SurfaceCard>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {studentHighlights.map((card) => (
+              <StatCard
+                key={card.label}
+                icon={card.icon}
+                label={card.label}
+                tone={card.tone}
+                value={card.value}
+              />
+            ))}
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-2">
+            <SurfaceCard>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Notat e fundit</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Nga kjo liste mund te kalosh direkt te moduli i notave ose profili yt.
+                  </p>
+                </div>
+                <Link to="/student/notat" className="text-sm font-semibold text-teal-700">
+                  Hap notat
+                </Link>
+              </div>
+              {dashboard?.grades?.length ? (
+                <div className="space-y-3">
+                  {dashboard.grades.slice(0, 4).map((grade) => (
+                    <div
+                      key={grade.nota_id}
+                      className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-slate-50/80 p-4"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-900">{grade.lenda}</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {grade.profesori || "-"} | {formatDateLabel(grade.data_vendosjes)}
+                        </p>
+                      </div>
+                      <StatusBadge tone="dark">{grade.nota}</StatusBadge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="Nuk ka nota te regjistruara"
+                  description="Kur te publikohen nota te reja, ato do te shfaqen ketu."
+                />
+              )}
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">Regjistrimet e mia</h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Lidhje direkte nga lenda drejt dokumenteve dhe progresit.
+                  </p>
+                </div>
+                <Link
+                  to="/student/regjistrimet"
+                  className="text-sm font-semibold text-teal-700"
+                >
+                  Hap regjistrimet
+                </Link>
+              </div>
+              {dashboard?.enrollments?.length ? (
+                <div className="space-y-3">
+                  {dashboard.enrollments.slice(0, 4).map((enrollment) => (
+                    <div
+                      key={enrollment.regjistrimi_id}
+                      className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{enrollment.lenda}</p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {enrollment.kodi} | {enrollment.viti_akademik}
+                          </p>
+                        </div>
+                        <StatusBadge>{enrollment.statusi}</StatusBadge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="Nuk ka regjistrime aktive"
+                  description="Pasi te lidhen regjistrime me profilin tend, ato do te shfaqen ketu."
+                />
+              )}
+            </SurfaceCard>
+          </section>
+        </>
+      )}
     </div>
   );
 }

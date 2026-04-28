@@ -295,7 +295,7 @@ function DepartamentetPage() {
                               onClick={() => openEditModal(departamenti)}
                               className={EDIT_ACTION_BUTTON_CLASS}
                             >
-                              Update
+                              Edito
                             </button>
 
                             <button
@@ -304,7 +304,7 @@ function DepartamentetPage() {
                               }
                               className={DELETE_ACTION_BUTTON_CLASS}
                             >
-                              Delete
+                              Fshij
                             </button>
                           </div>
                         </td>
@@ -425,14 +425,14 @@ function DepartamentetPage() {
                   onClick={closeModal}
                   className="px-4 py-2 rounded-xl bg-slate-200 text-slate-700"
                 >
-                  Cancel
+                  Anulo
                 </button>
 
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  {editingDepartamenti ? "Update" : "Save"}
+                  Ruaj
                 </button>
               </div>
             </form>

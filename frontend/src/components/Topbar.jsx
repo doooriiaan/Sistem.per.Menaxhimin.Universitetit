@@ -6,7 +6,7 @@ import { getUtilityItems, isPathActive } from "../utils/navigation";
 const titles = {
   "/": "Dashboard",
   "/njoftime": "Njoftime",
-  "/raporte": "Raporte",
+  "/raporte": "Analitika",
   "/ndihme": "Ndihme",
   "/studentet": "Studentet",
   "/profesoret": "Profesoret",
@@ -108,7 +108,10 @@ function Topbar({ onMenuToggle = () => {} }) {
             ))}
           </div>
 
-          <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 shadow-sm shadow-slate-900/5 sm:flex">
+          <Link
+            to="/profili"
+            className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 shadow-sm shadow-slate-900/5 transition hover:-translate-y-0.5 hover:border-slate-300 sm:flex"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 font-semibold text-white shadow-sm">
               {initials}
             </div>
@@ -119,7 +122,7 @@ function Topbar({ onMenuToggle = () => {} }) {
                 {user?.roli_label || "Perdorues"}
               </p>
             </div>
-          </div>
+          </Link>
 
           <button
             type="button"
