@@ -30,6 +30,18 @@ const ROLE_LABELS = {
   student: "Student",
 };
 
+const DAY_LABELS = [
+  "E diel",
+  "E hene",
+  "E marte",
+  "E merkure",
+  "E enjte",
+  "E premte",
+  "E shtune",
+];
+
+const getTodayScheduleLabel = () => DAY_LABELS[new Date().getDay()];
+
 const buildAuthUser = (user) => ({
   user_id: user.user_id,
   email: user.email,
@@ -517,28 +529,130 @@ const logout = async (req, res) => {
 };
 
 const getAdminDashboard = async () => {
-  const [countsRows] = await connection.query(`
-    SELECT
-      (SELECT COUNT(*) FROM studentet) AS students,
-      (SELECT COUNT(*) FROM profesoret) AS profesoret,
-      (SELECT COUNT(*) FROM lendet) AS lendet,
-      (SELECT COUNT(*) FROM provimet) AS provimet,
-      (SELECT COUNT(*) FROM regjistrimet) AS regjistrimet,
-      (SELECT COUNT(*) FROM gjeneratat) AS gjeneratat,
-      (SELECT COUNT(*) FROM kerkesat_sherbimeve) AS kerkesat_sherbimeve,
-      (SELECT COUNT(*) FROM rindjekjet_lendeve) AS rindjekjet,
-      (SELECT COUNT(*) FROM bursat) AS bursat,
-      (SELECT COUNT(*) FROM praktikat) AS praktikat,
-      (SELECT COUNT(*) FROM programet_erasmus) AS erasmus
-  `);
+  const [
+    countsRows,
+    attentionRows,
+    upcomingExamRows,
+    deadlineRows,
+    activityRows,
+  ] = await Promise.all([
+    connection.query(`
+      SELECT
+        (SELECT COUNT(*) FROM studentet) AS students,
+        (SELECT COUNT(*) FROM profesoret) AS profesoret,
+        (SELECT COUNT(*) FROM lendet) AS lendet,
+        (SELECT COUNT(*) FROM provimet) AS provimet,
+        (SELECT COUNT(*) FROM regjistrimet) AS regjistrimet,
+        (SELECT COUNT(*) FROM gjeneratat) AS gjeneratat,
+        (SELECT COUNT(*) FROM kerkesat_sherbimeve) AS kerkesat_sherbimeve,
+        (SELECT COUNT(*) FROM rindjekjet_lendeve) AS rindjekjet,
+        (SELECT COUNT(*) FROM bursat) AS bursat,
+        (SELECT COUNT(*) FROM praktikat) AS praktikat,
+        (SELECT COUNT(*) FROM programet_erasmus) AS erasmus
+    `),
+    connection.query(`
+      SELECT
+        (SELECT COUNT(*) FROM kerkesat_sherbimeve WHERE statusi = 'Ne pritje') AS pending_service_requests,
+        (SELECT COUNT(*) FROM rindjekjet_lendeve WHERE statusi = 'Ne pritje') AS pending_repeat_requests,
+        (SELECT COUNT(*) FROM aplikimet_bursave WHERE statusi = 'Ne pritje') AS pending_scholarship_applications,
+        (SELECT COUNT(*) FROM aplikimet_praktikave WHERE statusi = 'Ne pritje') AS pending_internship_applications,
+        (SELECT COUNT(*) FROM aplikimet_erasmus WHERE statusi = 'Ne pritje') AS pending_erasmus_applications,
+        (
+          SELECT COUNT(*)
+          FROM studentet
+          WHERE email IS NULL OR email = '' OR telefoni IS NULL OR telefoni = ''
+        ) AS incomplete_student_contacts
+    `),
+    connection.query(`
+      SELECT
+        pr.provimi_id,
+        l.emri AS lenda,
+        CONCAT(COALESCE(p.emri, ''), ' ', COALESCE(p.mbiemri, '')) AS profesori,
+        pr.data_provimit,
+        pr.ora,
+        pr.salla,
+        pr.afati
+      FROM provimet pr
+      LEFT JOIN lendet l ON pr.lende_id = l.lende_id
+      LEFT JOIN profesoret p ON pr.profesor_id = p.profesor_id
+      WHERE pr.data_provimit >= CURDATE()
+      ORDER BY pr.data_provimit ASC, pr.ora ASC
+      LIMIT 6
+    `),
+    connection.query(`
+      SELECT *
+      FROM (
+        SELECT
+          'Burse' AS type,
+          b.titulli AS title,
+          b.lloji AS meta,
+          b.afati_aplikimit AS due_date,
+          b.statusi
+        FROM bursat b
+        WHERE b.statusi = 'Hapur' AND b.afati_aplikimit >= CURDATE()
+        UNION ALL
+        SELECT
+          'Praktike' AS type,
+          CONCAT(p.pozita, ' - ', p.kompania) AS title,
+          p.lokacioni AS meta,
+          p.afati_aplikimit AS due_date,
+          p.statusi
+        FROM praktikat p
+        WHERE p.statusi = 'Hapur' AND p.afati_aplikimit >= CURDATE()
+        UNION ALL
+        SELECT
+          'Erasmus' AS type,
+          e.universiteti AS title,
+          e.shteti AS meta,
+          e.afati_aplikimit AS due_date,
+          e.statusi
+        FROM programet_erasmus e
+        WHERE e.statusi = 'Hapur' AND e.afati_aplikimit >= CURDATE()
+      ) upcoming_deadlines
+      ORDER BY due_date ASC, title ASC
+      LIMIT 6
+    `),
+    connection.query(`
+      SELECT *
+      FROM (
+        SELECT
+          'Sherbim' AS type,
+          CONCAT(s.emri, ' ', s.mbiemri) AS title,
+          sh.emri AS meta,
+          k.statusi,
+          CAST(k.kerkesa_id AS CHAR) AS reference_id,
+          k.requested_at AS activity_date
+        FROM kerkesat_sherbimeve k
+        LEFT JOIN studentet s ON k.student_id = s.student_id
+        LEFT JOIN sherbimet_studentore sh ON k.sherbimi_id = sh.sherbimi_id
+        UNION ALL
+        SELECT
+          'Dokument' AS type,
+          CONCAT(s.emri, ' ', s.mbiemri) AS title,
+          sd.lloji_dokumentit AS meta,
+          'Ngarkuar' AS statusi,
+          CAST(sd.dokument_id AS CHAR) AS reference_id,
+          sd.uploaded_at AS activity_date
+        FROM student_dokumentet sd
+        LEFT JOIN studentet s ON sd.student_id = s.student_id
+      ) recent_activity
+      ORDER BY activity_date DESC
+      LIMIT 8
+    `),
+  ]);
 
   return {
     role: "admin",
-    counts: countsRows[0],
+    counts: countsRows[0][0],
+    attention: attentionRows[0][0] || {},
+    upcomingExams: upcomingExamRows[0],
+    deadlines: deadlineRows[0],
+    recentActivity: activityRows[0],
   };
 };
 
 const getProfesorDashboard = async (profesorId) => {
+  const todayScheduleLabel = getTodayScheduleLabel();
   const [profileRows] = await connection.query(
     `
       SELECT
@@ -566,7 +680,17 @@ const getProfesorDashboard = async (profesorId) => {
         l.kodi,
         l.lloji,
         l.semestri,
-        l.kreditet
+        l.kreditet,
+        (
+          SELECT COUNT(DISTINCT r.student_id)
+          FROM regjistrimet r
+          WHERE r.lende_id = l.lende_id
+        ) AS total_studentesh,
+        (
+          SELECT COUNT(*)
+          FROM provimet p
+          WHERE p.lende_id = l.lende_id
+        ) AS total_provimeve
       FROM lendet l
       WHERE l.profesor_id = ?
       ORDER BY l.emri
@@ -582,11 +706,25 @@ const getProfesorDashboard = async (profesorId) => {
         p.data_provimit,
         p.ora,
         p.salla,
-        p.afati
+        p.afati,
+        (
+          SELECT COUNT(DISTINCT r.student_id)
+          FROM regjistrimet r
+          WHERE r.lende_id = p.lende_id
+        ) AS total_studentesh,
+        (
+          SELECT COUNT(DISTINCT n.student_id)
+          FROM notat n
+          WHERE n.provimi_id = p.provimi_id
+        ) AS total_notash
       FROM provimet p
       LEFT JOIN lendet l ON p.lende_id = l.lende_id
       WHERE p.profesor_id = ?
-      ORDER BY p.data_provimit DESC, p.ora DESC
+      ORDER BY
+        CASE WHEN p.data_provimit >= CURDATE() THEN 0 ELSE 1 END,
+        CASE WHEN p.data_provimit >= CURDATE() THEN p.data_provimit END ASC,
+        CASE WHEN p.data_provimit < CURDATE() THEN p.data_provimit END DESC,
+        p.ora ASC
       LIMIT 6
     `,
     [profesorId]
@@ -610,12 +748,116 @@ const getProfesorDashboard = async (profesorId) => {
     [profesorId]
   );
 
+  const [summaryRows] = await connection.query(
+    `
+      SELECT
+        (SELECT COUNT(*) FROM lendet WHERE profesor_id = ?) AS total_courses,
+        (
+          SELECT COUNT(DISTINCT r.student_id)
+          FROM regjistrimet r
+          JOIN lendet l ON r.lende_id = l.lende_id
+          WHERE l.profesor_id = ?
+        ) AS total_students,
+        (SELECT COUNT(*) FROM provimet WHERE profesor_id = ?) AS total_exams,
+        (
+          SELECT COUNT(*)
+          FROM (
+            SELECT
+              p.provimi_id,
+              GREATEST(
+                COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+                0
+              ) AS pending_count
+            FROM provimet p
+            LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+            LEFT JOIN notat n ON n.provimi_id = p.provimi_id
+            WHERE p.profesor_id = ?
+              AND p.data_provimit <= CURDATE()
+            GROUP BY p.provimi_id
+            HAVING pending_count > 0
+          ) pending_exams
+        ) AS pending_grade_exams,
+        (
+          SELECT COALESCE(SUM(pending_count), 0)
+          FROM (
+            SELECT
+              GREATEST(
+                COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+                0
+              ) AS pending_count
+            FROM provimet p
+            LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+            LEFT JOIN notat n ON n.provimi_id = p.provimi_id
+            WHERE p.profesor_id = ?
+              AND p.data_provimit <= CURDATE()
+            GROUP BY p.provimi_id
+          ) pending_grades
+        ) AS pending_grades_total,
+        (
+          SELECT COUNT(*)
+          FROM provimet
+          WHERE profesor_id = ? AND data_provimit >= CURDATE()
+        ) AS upcoming_exams_count,
+        (
+          SELECT COUNT(*)
+          FROM oraret
+          WHERE profesor_id = ? AND dita = ?
+        ) AS today_schedule_count
+    `,
+    [
+      profesorId,
+      profesorId,
+      profesorId,
+      profesorId,
+      profesorId,
+      profesorId,
+      profesorId,
+      todayScheduleLabel,
+    ]
+  );
+
+  const [gradePipelineRows] = await connection.query(
+    `
+      SELECT
+        p.provimi_id,
+        l.emri AS lenda,
+        p.data_provimit,
+        p.afati,
+        COUNT(DISTINCT r.student_id) AS total_students,
+        COUNT(DISTINCT n.student_id) AS total_grades,
+        GREATEST(
+          COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+          0
+        ) AS pending_grades
+      FROM provimet p
+      JOIN lendet l ON p.lende_id = l.lende_id
+      LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+      LEFT JOIN notat n ON n.provimi_id = p.provimi_id
+      WHERE p.profesor_id = ?
+        AND p.data_provimit <= CURDATE()
+      GROUP BY p.provimi_id, l.emri, p.data_provimit, p.afati
+      ORDER BY pending_grades DESC, p.data_provimit DESC
+      LIMIT 6
+    `,
+    [profesorId]
+  );
+
   return {
     role: "profesor",
     profile: profileRows[0] || null,
     courses: coursesRows,
     exams: examRows,
     schedule: scheduleRows,
+    summary: summaryRows[0] || {
+      total_courses: 0,
+      total_students: 0,
+      total_exams: 0,
+      pending_grade_exams: 0,
+      pending_grades_total: 0,
+      upcoming_exams_count: 0,
+      today_schedule_count: 0,
+    },
+    gradePipeline: gradePipelineRows,
   };
 };
 
@@ -630,6 +872,7 @@ const getStudentDashboard = async (studentId) => {
         s.telefoni,
         s.statusi,
         s.viti_studimit,
+        s.drejtimi_id,
         g.emri AS gjenerata,
         d.emri AS drejtimi,
         f.emri AS fakulteti
@@ -670,9 +913,18 @@ const getStudentDashboard = async (studentId) => {
         l.kodi,
         r.semestri,
         r.viti_akademik,
-        r.statusi
+        r.statusi,
+        l.kreditet,
+        l.lloji,
+        (
+          SELECT COUNT(*)
+          FROM regjistrim_dokumentet rd
+          WHERE rd.regjistrimi_id = r.regjistrimi_id
+        ) AS total_dokumenteve,
+        CONCAT(COALESCE(p.emri, ''), ' ', COALESCE(p.mbiemri, '')) AS profesori
       FROM regjistrimet r
       LEFT JOIN lendet l ON r.lende_id = l.lende_id
+      LEFT JOIN profesoret p ON l.profesor_id = p.profesor_id
       WHERE r.student_id = ?
       ORDER BY r.viti_akademik DESC, l.emri
       LIMIT 8
@@ -685,6 +937,7 @@ const getStudentDashboard = async (studentId) => {
       SELECT DISTINCT
         p.provimi_id,
         l.emri AS lenda,
+        CONCAT(COALESCE(pr.emri, ''), ' ', COALESCE(pr.mbiemri, '')) AS profesori,
         p.data_provimit,
         p.ora,
         p.salla,
@@ -692,8 +945,13 @@ const getStudentDashboard = async (studentId) => {
       FROM regjistrimet r
       JOIN provimet p ON r.lende_id = p.lende_id
       LEFT JOIN lendet l ON p.lende_id = l.lende_id
+      LEFT JOIN profesoret pr ON p.profesor_id = pr.profesor_id
       WHERE r.student_id = ?
-      ORDER BY p.data_provimit DESC, p.ora DESC
+      ORDER BY
+        CASE WHEN p.data_provimit >= CURDATE() THEN 0 ELSE 1 END,
+        CASE WHEN p.data_provimit >= CURDATE() THEN p.data_provimit END ASC,
+        CASE WHEN p.data_provimit < CURDATE() THEN p.data_provimit END DESC,
+        p.ora ASC
       LIMIT 6
     `,
     [studentId]
@@ -704,6 +962,7 @@ const getStudentDashboard = async (studentId) => {
       SELECT DISTINCT
         o.orari_id,
         l.emri AS lenda,
+        CONCAT(COALESCE(p.emri, ''), ' ', COALESCE(p.mbiemri, '')) AS profesori,
         o.dita,
         o.ora_fillimit,
         o.ora_mbarimit,
@@ -711,6 +970,7 @@ const getStudentDashboard = async (studentId) => {
       FROM regjistrimet r
       JOIN oraret o ON r.lende_id = o.lende_id
       LEFT JOIN lendet l ON o.lende_id = l.lende_id
+      LEFT JOIN profesoret p ON o.profesor_id = p.profesor_id
       WHERE r.student_id = ?
       ORDER BY FIELD(o.dita, 'E hene', 'E marte', 'E merkure', 'E enjte', 'E premte', 'E shtune', 'E diel'), o.ora_fillimit
       LIMIT 8
@@ -725,6 +985,46 @@ const getStudentDashboard = async (studentId) => {
         COUNT(*) AS total_notash,
         (
           SELECT COUNT(*)
+          FROM regjistrimet r
+          WHERE r.student_id = ?
+        ) AS total_regjistrimeve,
+        (
+          SELECT COALESCE(SUM(l.kreditet), 0)
+          FROM regjistrimet r
+          JOIN lendet l ON r.lende_id = l.lende_id
+          WHERE r.student_id = ?
+        ) AS total_kredite,
+        (
+          SELECT COALESCE(SUM(l.kreditet), 0)
+          FROM lendet l
+          WHERE l.lende_id IN (
+            SELECT DISTINCT pr.lende_id
+            FROM notat n
+            JOIN provimet pr ON n.provimi_id = pr.provimi_id
+            WHERE n.student_id = ? AND n.nota >= 6
+          )
+        ) AS kredite_te_kaluara,
+        (
+          SELECT COUNT(DISTINCT pr.lende_id)
+          FROM notat n
+          JOIN provimet pr ON n.provimi_id = pr.provimi_id
+          WHERE n.student_id = ? AND n.nota >= 6
+        ) AS lende_te_kaluara,
+        (
+          SELECT COUNT(DISTINCT r.lende_id)
+          FROM regjistrimet r
+          WHERE r.student_id = ?
+            AND NOT EXISTS (
+              SELECT 1
+              FROM notat n
+              JOIN provimet pr ON n.provimi_id = pr.provimi_id
+              WHERE n.student_id = r.student_id
+                AND pr.lende_id = r.lende_id
+                AND n.nota >= 6
+            )
+        ) AS lende_pa_note_kaluese,
+        (
+          SELECT COUNT(*)
           FROM kerkesat_sherbimeve ks
           WHERE ks.student_id = ?
         ) AS total_kerkesave_sherbimeve,
@@ -732,9 +1032,156 @@ const getStudentDashboard = async (studentId) => {
           SELECT COUNT(*)
           FROM rindjekjet_lendeve rl
           WHERE rl.student_id = ?
-        ) AS total_rindjekjeve
+        ) AS total_rindjekjeve,
+        (
+          SELECT COUNT(*)
+          FROM rindjekjet_lendeve rl
+          WHERE rl.student_id = ? AND rl.statusi = 'Ne pritje'
+        ) AS pending_repeat_requests,
+        (
+          SELECT COUNT(DISTINCT p.provimi_id)
+          FROM regjistrimet r
+          JOIN provimet p ON r.lende_id = p.lende_id
+          WHERE r.student_id = ? AND p.data_provimit >= CURDATE()
+        ) AS upcoming_exams_count,
+        (
+          SELECT COUNT(*)
+          FROM regjistrimet r
+          WHERE r.student_id = ?
+            AND NOT EXISTS (
+              SELECT 1
+              FROM regjistrim_dokumentet rd
+              WHERE rd.regjistrimi_id = r.regjistrimi_id
+            )
+        ) AS missing_course_documents_count,
+        (
+          SELECT COUNT(*)
+          FROM kerkesat_sherbimeve ks
+          WHERE ks.student_id = ? AND ks.statusi = 'Ne pritje'
+        ) AS pending_service_requests,
+        (
+          SELECT
+            (SELECT COUNT(*) FROM aplikimet_bursave ab WHERE ab.student_id = ? AND ab.statusi = 'Ne pritje') +
+            (SELECT COUNT(*) FROM aplikimet_praktikave ap WHERE ap.student_id = ? AND ap.statusi = 'Ne pritje') +
+            (SELECT COUNT(*) FROM aplikimet_erasmus ae WHERE ae.student_id = ? AND ae.statusi = 'Ne pritje')
+        ) AS pending_applications_count
       FROM notat
       WHERE student_id = ?
+    `,
+    [
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+      studentId,
+    ]
+  );
+
+  const [serviceRows] = await connection.query(
+    `
+      SELECT
+        k.kerkesa_id,
+        sh.emri AS sherbimi,
+        sh.kategoria,
+        k.statusi,
+        k.statusi_pageses,
+        k.requested_at,
+        k.shuma_paguar
+      FROM kerkesat_sherbimeve k
+      LEFT JOIN sherbimet_studentore sh ON k.sherbimi_id = sh.sherbimi_id
+      WHERE k.student_id = ?
+      ORDER BY k.requested_at DESC
+      LIMIT 5
+    `,
+    [studentId]
+  );
+
+  const drejtimiId = profileRows[0]?.drejtimi_id || null;
+
+  const [deadlineRows] = await connection.query(
+    `
+      SELECT *
+      FROM (
+        SELECT
+          'Burse' AS type,
+          b.titulli AS title,
+          b.lloji AS meta,
+          b.afati_aplikimit AS due_date,
+          b.statusi
+        FROM bursat b
+        WHERE b.statusi = 'Hapur' AND b.afati_aplikimit >= CURDATE()
+        UNION ALL
+        SELECT
+          'Praktike' AS type,
+          CONCAT(p.pozita, ' - ', p.kompania) AS title,
+          p.lokacioni AS meta,
+          p.afati_aplikimit AS due_date,
+          p.statusi
+        FROM praktikat p
+        WHERE p.statusi = 'Hapur'
+          AND p.afati_aplikimit >= CURDATE()
+          AND (p.drejtimi_id IS NULL OR p.drejtimi_id = ?)
+        UNION ALL
+        SELECT
+          'Erasmus' AS type,
+          e.universiteti AS title,
+          e.shteti AS meta,
+          e.afati_aplikimit AS due_date,
+          e.statusi
+        FROM programet_erasmus e
+        WHERE e.statusi = 'Hapur'
+          AND e.afati_aplikimit >= CURDATE()
+          AND (e.drejtimi_id IS NULL OR e.drejtimi_id = ?)
+      ) student_deadlines
+      ORDER BY due_date ASC, title ASC
+      LIMIT 5
+    `,
+    [drejtimiId, drejtimiId]
+  );
+
+  const [applicationRows] = await connection.query(
+    `
+      SELECT *
+      FROM (
+        SELECT
+          'Burse' AS type,
+          b.titulli AS title,
+          a.statusi,
+          a.applied_at AS activity_date
+        FROM aplikimet_bursave a
+        JOIN bursat b ON a.bursa_id = b.bursa_id
+        WHERE a.student_id = ?
+        UNION ALL
+        SELECT
+          'Praktike' AS type,
+          CONCAT(p.pozita, ' - ', p.kompania) AS title,
+          a.statusi,
+          a.applied_at AS activity_date
+        FROM aplikimet_praktikave a
+        JOIN praktikat p ON a.praktika_id = p.praktika_id
+        WHERE a.student_id = ?
+        UNION ALL
+        SELECT
+          'Erasmus' AS type,
+          e.universiteti AS title,
+          a.statusi,
+          a.applied_at AS activity_date
+        FROM aplikimet_erasmus a
+        JOIN programet_erasmus e ON a.erasmus_id = e.erasmus_id
+        WHERE a.student_id = ?
+      ) student_applications
+      ORDER BY activity_date DESC
+      LIMIT 5
     `,
     [studentId, studentId, studentId]
   );
@@ -746,11 +1193,24 @@ const getStudentDashboard = async (studentId) => {
     enrollments: enrollmentRows,
     exams: examRows,
     schedule: scheduleRows,
+    services: serviceRows,
+    deadlines: deadlineRows,
+    applications: applicationRows,
     summary: summaryRows[0] || {
       mesatarja: null,
       total_notash: 0,
+      total_regjistrimeve: 0,
+      total_kredite: 0,
+      kredite_te_kaluara: 0,
+      lende_te_kaluara: 0,
+      lende_pa_note_kaluese: 0,
       total_kerkesave_sherbimeve: 0,
       total_rindjekjeve: 0,
+      pending_repeat_requests: 0,
+      upcoming_exams_count: 0,
+      missing_course_documents_count: 0,
+      pending_service_requests: 0,
+      pending_applications_count: 0,
     },
   };
 };
