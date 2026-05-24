@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import { formatDateLabel } from "../utils/display";
 import {
   getApiErrorMessage,
@@ -108,11 +109,7 @@ function NotificationsPage() {
   };
 
   const handleDelete = async (notice) => {
-    const shouldDelete = window.confirm(
-      `A deshironi ta fshini njoftimin "${notice.titulli}"?`
-    );
-
-    if (!shouldDelete) {
+    if (!confirmDelete(`njoftimin "${notice.titulli}"`)) {
       return;
     }
 

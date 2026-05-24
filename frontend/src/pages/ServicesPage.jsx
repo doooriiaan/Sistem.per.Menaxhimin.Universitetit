@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import { formatCurrency, formatDateLabel } from "../utils/display";
 import {
   PAYMENT_STATUS_OPTIONS,
@@ -134,6 +135,10 @@ function ServicesPage() {
   };
 
   const handleDeleteService = async (id) => {
+    if (!confirmDelete("kete sherbim")) {
+      return;
+    }
+
     try {
       await API.delete(`/sherbimet/${id}`);
       fetchData();

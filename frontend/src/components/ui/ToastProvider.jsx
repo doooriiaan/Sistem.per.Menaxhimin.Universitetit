@@ -1,17 +1,20 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { APP_TOAST_EVENT } from "../../utils/toastEvents";
 
 const ToastContext = createContext(null);
 
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const timersRef = useRef(new Map());
+  const lastToastRef = useRef({ message: "", tone: "", at: 0 });
 
   useEffect(
     () => () => {
@@ -21,7 +24,7 @@ function ToastProvider({ children }) {
     []
   );
 
-  const removeToast = (id) => {
+  const removeToast = useCallback((id) => {
     const timerId = timersRef.current.get(id);
 
     if (timerId) {
@@ -30,22 +33,60 @@ function ToastProvider({ children }) {
     }
 
     setToasts((current) => current.filter((toast) => toast.id !== id));
-  };
+  }, []);
 
-  const pushToast = ({ message, title, tone = "info" }) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const nextToast = {
-      id,
-      message,
-      title,
-      tone,
+  const pushToast = useCallback(
+    ({ message, title, tone = "info" }) => {
+      if (!message) {
+        return;
+      }
+
+      const now = Date.now();
+      const lastToast = lastToastRef.current;
+
+      if (
+        lastToast.message === message &&
+        lastToast.tone === tone &&
+        now - lastToast.at < 900
+      ) {
+        return;
+      }
+
+      lastToastRef.current = { message, tone, at: now };
+
+      const id = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+      const nextToast = {
+        id,
+        message,
+        title:
+          title ||
+          (tone === "error"
+            ? "Gabim"
+            : tone === "success"
+              ? "U krye me sukses"
+              : "Informacion"),
+        tone,
+      };
+
+      setToasts((current) => [...current, nextToast]);
+
+      const timerId = window.setTimeout(() => removeToast(id), 4200);
+      timersRef.current.set(id, timerId);
+    },
+    [removeToast]
+  );
+
+  useEffect(() => {
+    const handleAppToast = (event) => {
+      pushToast(event.detail || {});
     };
 
-    setToasts((current) => [...current, nextToast]);
+    window.addEventListener(APP_TOAST_EVENT, handleAppToast);
 
-    const timerId = window.setTimeout(() => removeToast(id), 4200);
-    timersRef.current.set(id, timerId);
-  };
+    return () => {
+      window.removeEventListener(APP_TOAST_EVENT, handleAppToast);
+    };
+  }, [pushToast]);
 
   const value = useMemo(
     () => ({
@@ -57,7 +98,7 @@ function ToastProvider({ children }) {
       notifySuccess: (message, title = "U ruajt me sukses") =>
         pushToast({ message, title, tone: "success" }),
     }),
-    []
+    [pushToast, removeToast]
   );
 
   return (
@@ -108,4 +149,5 @@ function useToast() {
   return context;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export { ToastProvider, useToast };

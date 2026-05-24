@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import PaymentProcessingOverlay from "../components/ui/PaymentProcessingOverlay";
+import { useToast } from "../components/ui/ToastProvider";
 import API from "../services/api";
 import { formatCurrency, formatDateLabel } from "../utils/display";
 import {
@@ -20,11 +22,17 @@ const emptyForm = {
   payment: emptyPayment,
 };
 
+const PAYMENT_LOADING_DELAY = 3000;
+const wait = (milliseconds) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
 function StudentServicesPage() {
+  const { notifyError } = useToast();
   const [services, setServices] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
@@ -62,21 +70,33 @@ function StudentServicesPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const requiresPayment = Number(selectedService?.cmimi) > 0;
     const validationError = validateStudentServiceRequestForm(form, {
-      requirePayment: Number(selectedService?.cmimi) > 0,
+      requirePayment: requiresPayment,
     });
 
     if (validationError) {
       setError(validationError);
+      notifyError(validationError);
       return;
     }
 
     try {
+      setError("");
+
+      if (requiresPayment) {
+        setPaymentProcessing(true);
+        await wait(PAYMENT_LOADING_DELAY);
+      }
+
       await API.post("/student/sherbimet/kerkesat", form);
       closeRequestModal();
       fetchData();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Gabim gjate dergimit te kerkeses."));
+      const message = getApiErrorMessage(err, "Gabim gjate dergimit te kerkeses.");
+      setError(message);
+    } finally {
+      setPaymentProcessing(false);
     }
   };
 
@@ -190,6 +210,7 @@ function StudentServicesPage() {
               <button
                 type="button"
                 onClick={closeRequestModal}
+                disabled={paymentProcessing}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600"
               >
                 Mbyll
@@ -301,21 +322,25 @@ function StudentServicesPage() {
                 <button
                   type="button"
                   onClick={closeRequestModal}
-                  className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+                  disabled={paymentProcessing}
+                  className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Anulo
                 </button>
                 <button
                   type="submit"
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+                  disabled={paymentProcessing}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-500"
                 >
-                  Paguaj dhe dergo
+                  {paymentProcessing ? "Duke procesuar..." : "Paguaj dhe dergo"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <PaymentProcessingOverlay show={paymentProcessing} />
     </div>
   );
 }

@@ -164,10 +164,14 @@ function StudentProfilePage() {
 
     try {
       setUploading(true);
-      const response = await API.post("/student/dokumentet", {
-        lloji_dokumentit: documentForm.lloji_dokumentit,
-        file: documentForm.file,
-      });
+      const response = await API.post(
+        "/student/dokumentet",
+        {
+          lloji_dokumentit: documentForm.lloji_dokumentit,
+          file: documentForm.file,
+        },
+        { showToast: false }
+      );
 
       setDocumentForm({
         lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,

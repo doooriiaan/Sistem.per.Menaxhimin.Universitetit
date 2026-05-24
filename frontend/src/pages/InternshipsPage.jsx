@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import { formatDateLabel } from "../utils/display";
 import {
   APPLICATION_STATUS_OPTIONS,
@@ -121,6 +122,10 @@ function InternshipsPage() {
   };
 
   const handleDeleteOffer = async (id) => {
+    if (!confirmDelete("kete praktike")) {
+      return;
+    }
+
     try {
       await API.delete(`/praktikat/${id}`);
       fetchData();

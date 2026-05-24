@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import BackendStatusBanner from "../components/BackendStatusBanner";
+import { useToast } from "../components/ui/ToastProvider";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
@@ -19,6 +20,7 @@ const emptyForm = {
 function RegisterPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { notifyError } = useToast();
   const backendStatus = useBackendStatus();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
@@ -41,6 +43,7 @@ function RegisterPage() {
 
     if (validationError) {
       setError(validationError);
+      notifyError(validationError);
       return;
     }
 
@@ -61,7 +64,8 @@ function RegisterPage() {
 
       navigate("/", { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, "Gabim gjate regjistrimit."));
+      const message = getApiErrorMessage(err, "Gabim gjate regjistrimit.");
+      setError(message);
     } finally {
       setSubmitting(false);
     }

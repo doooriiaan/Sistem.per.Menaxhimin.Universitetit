@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useState } from "react";
 import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import {
   DELETE_ACTION_BUTTON_CLASS,
   EDIT_ACTION_BUTTON_CLASS,
@@ -192,6 +193,10 @@ function DrejtimetPage() {
   };
 
   const handleDelete = async (id) => {
+    if (!confirmDelete("kete drejtim")) {
+      return;
+    }
+
     try {
       await API.delete(`/drejtimet/${id}`);
       fetchDrejtimet();

@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useState } from "react";
 import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import {
   DELETE_ACTION_BUTTON_CLASS,
   EDIT_ACTION_BUTTON_CLASS,
@@ -198,6 +199,10 @@ function ProfesoretPage() {
   };
 
   const handleDelete = async (id) => {
+    if (!confirmDelete("kete profesor")) {
+      return;
+    }
+
     try {
       await API.delete(`/profesoret/${id}`);
       fetchProfesoret();

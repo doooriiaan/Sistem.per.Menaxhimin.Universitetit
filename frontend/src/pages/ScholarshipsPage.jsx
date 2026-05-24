@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import { formatCurrency, formatDateLabel } from "../utils/display";
 import {
   APPLICATION_STATUS_OPTIONS,
@@ -114,6 +115,10 @@ function ScholarshipsPage() {
   };
 
   const handleDeleteOffer = async (id) => {
+    if (!confirmDelete("kete burse")) {
+      return;
+    }
+
     try {
       await API.delete(`/bursat/${id}`);
       fetchData();

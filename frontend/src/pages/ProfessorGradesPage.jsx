@@ -154,12 +154,18 @@ function ProfessorGradesPage() {
       let response;
 
       if (draft?.nota_id) {
-        response = await API.put(`/profesor/notat/${draft.nota_id}`, {
-          nota: draft.nota,
-          data_vendosjes: draft.data_vendosjes,
-        });
+        response = await API.put(
+          `/profesor/notat/${draft.nota_id}`,
+          {
+            nota: draft.nota,
+            data_vendosjes: draft.data_vendosjes,
+          },
+          { showToast: false }
+        );
       } else {
-        response = await API.post("/profesor/notat", createPayload);
+        response = await API.post("/profesor/notat", createPayload, {
+          showToast: false,
+        });
       }
 
       await fetchExamStudents(selectedExamId);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import {
   DELETE_ACTION_BUTTON_CLASS,
   EDIT_ACTION_BUTTON_CLASS,
@@ -127,6 +128,10 @@ function ProfessorExamsPage() {
   };
 
   const handleDelete = async (examId) => {
+    if (!confirmDelete("kete provim")) {
+      return;
+    }
+
     try {
       await API.delete(`/profesor/provimet/${examId}`);
       fetchData();

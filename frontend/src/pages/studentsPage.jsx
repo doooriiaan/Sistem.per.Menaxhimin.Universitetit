@@ -6,6 +6,7 @@ import { useToast } from "../components/ui/ToastProvider";
 import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import {
   GENDER_OPTIONS,
   STUDENT_DOCUMENT_TYPE_OPTIONS,
@@ -251,10 +252,14 @@ function StudentsPage() {
     }
 
     try {
-      const response = await API.post(`/studentet/${documentModalStudent.student_id}/dokumentet`, {
-        lloji_dokumentit: documentForm.lloji_dokumentit,
-        file: documentForm.file,
-      });
+      const response = await API.post(
+        `/studentet/${documentModalStudent.student_id}/dokumentet`,
+        {
+          lloji_dokumentit: documentForm.lloji_dokumentit,
+          file: documentForm.file,
+        },
+        { showToast: false }
+      );
       setDocumentForm({
         lloji_dokumentit: STUDENT_DOCUMENT_TYPE_OPTIONS[0].value,
         file: null,
@@ -288,9 +293,13 @@ function StudentsPage() {
     try {
       let response;
       if (editingStudent) {
-        response = await API.put(`/studentet/${editingStudent.student_id}`, form);
+        response = await API.put(
+          `/studentet/${editingStudent.student_id}`,
+          form,
+          { showToast: false }
+        );
       } else {
-        response = await API.post("/studentet", form);
+        response = await API.post("/studentet", form, { showToast: false });
       }
 
       closeModal();
@@ -313,8 +322,12 @@ function StudentsPage() {
   };
 
   const handleDelete = async (id) => {
+    if (!confirmDelete("kete student")) {
+      return;
+    }
+
     try {
-      const response = await API.delete(`/studentet/${id}`);
+      const response = await API.delete(`/studentet/${id}`, { showToast: false });
       fetchStudents();
       notifySuccess(
         getResponseMessage(response, "Studenti u fshi me sukses."),

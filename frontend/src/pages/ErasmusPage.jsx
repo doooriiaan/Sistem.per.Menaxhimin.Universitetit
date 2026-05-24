@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { confirmDelete } from "../utils/confirmations";
 import { formatDateLabel } from "../utils/display";
 import {
   APPLICATION_STATUS_OPTIONS,
@@ -121,6 +122,10 @@ function ErasmusPage() {
   };
 
   const handleDeleteOffer = async (id) => {
+    if (!confirmDelete("kete program Erasmus")) {
+      return;
+    }
+
     try {
       await API.delete(`/erasmus/${id}`);
       fetchData();

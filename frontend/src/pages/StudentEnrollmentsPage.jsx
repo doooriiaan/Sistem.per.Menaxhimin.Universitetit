@@ -132,10 +132,14 @@ function StudentEnrollmentsPage() {
         error: "",
       });
 
-      const response = await API.post(`/student/regjistrimet/${registrationId}/dokumentet`, {
-        emri_dokumentit: currentForm.emri_dokumentit,
-        file: currentForm.file,
-      });
+      const response = await API.post(
+        `/student/regjistrimet/${registrationId}/dokumentet`,
+        {
+          emri_dokumentit: currentForm.emri_dokumentit,
+          file: currentForm.file,
+        },
+        { showToast: false }
+      );
 
       updateUploadForm(registrationId, {
         emri_dokumentit: "",

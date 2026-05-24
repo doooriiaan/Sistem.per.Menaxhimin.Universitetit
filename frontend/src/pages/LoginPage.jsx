@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import BackendStatusBanner from "../components/BackendStatusBanner";
+import { useToast } from "../components/ui/ToastProvider";
 import { useBackendStatus } from "../hooks/useBackendStatus";
 import { useAuth } from "../hooks/useAuth";
 import API from "../services/api";
@@ -18,6 +19,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const { notifyError, notifyInfo } = useToast();
   const backendStatus = useBackendStatus();
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
@@ -25,6 +27,15 @@ function LoginPage() {
   const passwordChanged = Boolean(location.state?.passwordChanged);
 
   const redirectPath = location.state?.from?.pathname || "/";
+
+  useEffect(() => {
+    if (passwordChanged) {
+      notifyInfo(
+        "Fjalekalimi u ndryshua. Identifikohu perseri per te vazhduar.",
+        "Fjalekalimi u ruajt"
+      );
+    }
+  }, [passwordChanged, notifyInfo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -43,6 +54,7 @@ function LoginPage() {
 
     if (validationError) {
       setError(validationError);
+      notifyError(validationError);
       return;
     }
 
@@ -61,7 +73,8 @@ function LoginPage() {
 
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, "Gabim gjate identifikimit."));
+      const message = getApiErrorMessage(err, "Gabim gjate identifikimit.");
+      setError(message);
     } finally {
       setSubmitting(false);
     }

@@ -3,6 +3,7 @@ import PaginationControls from "../components/PaginationControls";
 import TableToolbar from "../components/TableToolbar";
 import API from "../services/api";
 import { formatFileSize } from "../utils/display";
+import { confirmDelete } from "../utils/confirmations";
 import {
   DELETE_ACTION_BUTTON_CLASS,
   EDIT_ACTION_BUTTON_CLASS,
@@ -203,6 +204,10 @@ function RegjistrimetPage() {
   };
 
   const handleDelete = async (id) => {
+    if (!confirmDelete("kete regjistrim")) {
+      return;
+    }
+
     try {
       await API.delete(`/regjistrimet/${id}`);
       fetchRegjistrimet();

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import PaymentProcessingOverlay from "../components/ui/PaymentProcessingOverlay";
+import { useToast } from "../components/ui/ToastProvider";
 import API from "../services/api";
 import { formatCurrency, formatDateLabel } from "../utils/display";
 import { buildAcademicYearOptions, SEMESTER_OPTIONS } from "../utils/formOptions";
@@ -26,11 +28,17 @@ const emptyForm = {
   payment: emptyPayment,
 };
 
+const PAYMENT_LOADING_DELAY = 3000;
+const wait = (milliseconds) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
 function StudentRepeatCoursesPage() {
+  const { notifyError } = useToast();
   const [courses, setCourses] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
@@ -80,15 +88,22 @@ function StudentRepeatCoursesPage() {
 
     if (validationError) {
       setError(validationError);
+      notifyError(validationError);
       return;
     }
 
     try {
+      setError("");
+      setPaymentProcessing(true);
+      await wait(PAYMENT_LOADING_DELAY);
       await API.post("/student/rindjekjet", form);
       closeModal();
       fetchData();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Gabim gjate dergimit te rindjekjes."));
+      const message = getApiErrorMessage(err, "Gabim gjate dergimit te rindjekjes.");
+      setError(message);
+    } finally {
+      setPaymentProcessing(false);
     }
   };
 
@@ -212,7 +227,8 @@ function StudentRepeatCoursesPage() {
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                disabled={paymentProcessing}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Mbyll
               </button>
@@ -356,21 +372,25 @@ function StudentRepeatCoursesPage() {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
+                  disabled={paymentProcessing}
+                  className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Anulo
                 </button>
                 <button
                   type="submit"
-                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+                  disabled={paymentProcessing}
+                  className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-500"
                 >
-                  Paguaj dhe dergo
+                  {paymentProcessing ? "Duke procesuar..." : "Paguaj dhe dergo"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <PaymentProcessingOverlay show={paymentProcessing} />
     </div>
   );
 }
