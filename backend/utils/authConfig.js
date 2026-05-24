@@ -9,7 +9,7 @@ const REFRESH_TOKEN_COOKIE_NAME =
 const FRONTEND_ORIGINS = (
   process.env.FRONTEND_ORIGINS ||
   process.env.FRONTEND_ORIGIN ||
-  "http://localhost:5173,http://127.0.0.1:5173"
+  "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
 )
   .split(",")
   .map((origin) => origin.trim())

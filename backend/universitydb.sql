@@ -128,6 +128,22 @@ CREATE TABLE provimet (
         ON UPDATE CASCADE
 );
 
+CREATE TABLE paraqitjet_provimeve (
+    paraqitje_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    provimi_id INT NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Paraqitur',
+    paraqitur_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_paraqitjet_student_provim (student_id, provimi_id),
+    INDEX idx_paraqitjet_provimeve_provimi (provimi_id),
+    FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (provimi_id) REFERENCES provimet(provimi_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
 CREATE TABLE regjistrimet (
     regjistrimi_id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NULL,
@@ -1866,6 +1882,30 @@ SELECT
     DATE_ADD(eg.data_provimit, INTERVAL MOD(eg.student_id, 5) + 1 DAY) AS data_vendosjes
 FROM eligible_grades eg
 WHERE MOD(eg.student_id + eg.provimi_id, 4) <> 0;
+
+INSERT IGNORE INTO paraqitjet_provimeve
+    (student_id, provimi_id, statusi, paraqitur_at)
+SELECT
+    n.student_id,
+    n.provimi_id,
+    'Paraqitur',
+    COALESCE(n.data_vendosjes, CURRENT_TIMESTAMP)
+FROM notat n
+WHERE n.student_id IS NOT NULL
+  AND n.provimi_id IS NOT NULL;
+
+INSERT IGNORE INTO paraqitjet_provimeve
+    (student_id, provimi_id, statusi, paraqitur_at)
+SELECT
+    r.student_id,
+    p.provimi_id,
+    'Paraqitur',
+    DATE_SUB(p.data_provimit, INTERVAL 7 DAY)
+FROM regjistrimet r
+JOIN provimet p ON p.lende_id = r.lende_id
+WHERE p.data_provimit >= '2026-05-24'
+  AND r.statusi IN ('Aktiv', 'Perfunduar')
+  AND MOD(r.student_id + p.provimi_id, 2) = 0;
 
 -- Seanca shtese ne orar per laborator ose ushtrime
 INSERT INTO oraret (lende_id, profesor_id, dita, ora_fillimit, ora_mbarimit, salla)

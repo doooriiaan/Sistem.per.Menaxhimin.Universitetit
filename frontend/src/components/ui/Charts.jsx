@@ -70,7 +70,31 @@ function DonutChartCard({
   const total = data.reduce((sum, item) => sum + (Number(item[valueKey]) || 0), 0);
   const radius = 44;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const segments = data.reduce(
+    (accumulator, item, index) => {
+      const value = Number(item[valueKey]) || 0;
+      const length = total > 0 ? (value / total) * circumference : 0;
+
+      accumulator.items.push(
+        <circle
+          key={`${item[labelKey]}-${value}`}
+          cx="60"
+          cy="60"
+          r={radius}
+          fill="none"
+          stroke={palette[index % palette.length]}
+          strokeDasharray={`${length} ${circumference - length}`}
+          strokeDashoffset={-accumulator.offset}
+          strokeLinecap="round"
+          strokeWidth="16"
+        />
+      );
+      accumulator.offset += length;
+
+      return accumulator;
+    },
+    { items: [], offset: 0 }
+  ).items;
 
   return (
     <ChartCard title={title} description={description}>
@@ -78,26 +102,7 @@ function DonutChartCard({
         <div className="mx-auto flex h-[180px] w-[180px] items-center justify-center">
           <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
             <circle cx="60" cy="60" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="16" />
-            {data.map((item, index) => {
-              const value = Number(item[valueKey]) || 0;
-              const length = total > 0 ? (value / total) * circumference : 0;
-              const segment = (
-                <circle
-                  key={`${item[labelKey]}-${value}`}
-                  cx="60"
-                  cy="60"
-                  r={radius}
-                  fill="none"
-                  stroke={palette[index % palette.length]}
-                  strokeDasharray={`${length} ${circumference - length}`}
-                  strokeDashoffset={-offset}
-                  strokeLinecap="round"
-                  strokeWidth="16"
-                />
-              );
-              offset += length;
-              return segment;
-            })}
+            {segments}
           </svg>
           <div className="absolute text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">

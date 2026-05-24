@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import API from "../services/api";
 import { confirmDelete } from "../utils/confirmations";
 import {
@@ -179,7 +179,9 @@ function ProfessorExamsPage() {
                 <th className="pb-3 font-medium">Ora</th>
                 <th className="pb-3 font-medium">Salla</th>
                 <th className="pb-3 font-medium">Afati</th>
+                <th className="pb-3 font-medium">Paraqitje</th>
                 <th className="pb-3 font-medium">Nota</th>
+                <th className="pb-3 font-medium">Pa nota</th>
                 <th className="pb-3 font-medium">Veprime</th>
               </tr>
             </thead>
@@ -195,9 +197,17 @@ function ProfessorExamsPage() {
                   <td className="py-3 text-slate-600">{formatTimeLabel(exam.ora)}</td>
                   <td className="py-3 text-slate-600">{exam.salla}</td>
                   <td className="py-3 text-slate-600">{exam.afati}</td>
+                  <td className="py-3 text-slate-600">{exam.total_paraqitjeve || 0}</td>
                   <td className="py-3 text-slate-600">{exam.total_notash}</td>
+                  <td className="py-3 text-slate-600">{exam.pending_notash || 0}</td>
                   <td className="py-3">
                     <div className="flex items-center gap-3">
+                      <Link
+                        to={`/profesor/notat?course=${exam.lende_id}&exam=${exam.provimi_id}`}
+                        className={EDIT_ACTION_BUTTON_CLASS}
+                      >
+                        Notat
+                      </Link>
                       <button
                         type="button"
                         onClick={() => openEditModal(exam)}

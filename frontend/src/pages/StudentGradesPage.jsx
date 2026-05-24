@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "../utils/validation";
 
 function StudentGradesPage() {
   const [grades, setGrades] = useState([]);
+  const [transcript, setTranscript] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -19,10 +20,14 @@ function StudentGradesPage() {
     const fetchGrades = async () => {
       try {
         setLoading(true);
-        const response = await API.get("/student/notat");
+        const [gradesResponse, transcriptResponse] = await Promise.all([
+          API.get("/student/notat"),
+          API.get("/student/transkripta"),
+        ]);
 
         if (active) {
-          setGrades(response.data || []);
+          setGrades(gradesResponse.data || []);
+          setTranscript(transcriptResponse.data || []);
           setError("");
         }
       } catch (err) {
@@ -60,6 +65,24 @@ function StudentGradesPage() {
   }, [grades]);
 
   const latestGrade = grades[0];
+
+  const transcriptSummary = useMemo(() => {
+    const passedRows = transcript.filter((row) => Number(row.nota_finale) >= 6);
+    const earnedCredits = passedRows.reduce(
+      (sum, row) => sum + Number(row.kreditet || 0),
+      0
+    );
+    const totalCredits = transcript.reduce(
+      (sum, row) => sum + Number(row.kreditet || 0),
+      0
+    );
+
+    return {
+      earnedCredits,
+      passedCourses: passedRows.length,
+      totalCredits,
+    };
+  }, [transcript]);
 
   if (loading) {
     return <SkeletonRows count={4} />;
@@ -108,6 +131,84 @@ function StudentGradesPage() {
           tone="dark"
         />
       </section>
+
+      <SurfaceCard>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">Transkripta e notave</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Permbledhje sipas lendeve te regjistruara, kredive dhe notes finale.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge tone="info">
+              {transcriptSummary.earnedCredits}/{transcriptSummary.totalCredits} ECTS
+            </StatusBadge>
+            <StatusBadge tone="dark">
+              {transcriptSummary.passedCourses} lende te kaluara
+            </StatusBadge>
+          </div>
+        </div>
+
+        {transcript.length ? (
+          <div className="overflow-x-auto">
+            <table className="data-table min-w-full">
+              <thead>
+                <tr>
+                  <th>Lenda</th>
+                  <th>Semestri</th>
+                  <th>Kredite</th>
+                  <th>Profesori</th>
+                  <th>Nota finale</th>
+                  <th>Statusi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transcript.map((row) => (
+                  <tr key={row.regjistrimi_id}>
+                    <td>
+                      <div>
+                        <p className="font-semibold text-slate-900">{row.lenda}</p>
+                        <p className="mt-1 text-xs text-slate-500">{row.kodi}</p>
+                      </div>
+                    </td>
+                    <td>
+                      Sem. {row.semestri} | {row.viti_akademik}
+                    </td>
+                    <td>{row.kreditet} ECTS</td>
+                    <td>{row.profesori || "-"}</td>
+                    <td>
+                      {row.nota_finale ? (
+                        <StatusBadge tone="dark">{row.nota_finale}</StatusBadge>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      <StatusBadge
+                        tone={
+                          row.statusi_akademik === "Kaluar"
+                            ? "success"
+                            : row.statusi_akademik === "Jo kaluese"
+                              ? "warning"
+                              : "info"
+                        }
+                      >
+                        {row.statusi_akademik}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            title="Transkripta nuk ka te dhena"
+            description="Lendet e regjistruara do te shfaqen ketu bashke me notat finale sapo te kete regjistrime."
+          />
+        )}
+      </SurfaceCard>
 
       <SurfaceCard>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">

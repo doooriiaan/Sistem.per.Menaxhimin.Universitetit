@@ -19,6 +19,7 @@ function ProfessorGradesPage() {
   const { notifyError, notifySuccess } = useToast();
   const [searchParams] = useSearchParams();
   const courseFilter = searchParams.get("course");
+  const examFilter = searchParams.get("exam");
   const [exams, setExams] = useState([]);
   const [selectedExamId, setSelectedExamId] = useState("");
   const [examData, setExamData] = useState(null);
@@ -109,10 +110,19 @@ function ProfessorGradesPage() {
       (exam) => String(exam.provimi_id) === String(selectedExamId)
     );
 
+    const requestedExam = examFilter
+      ? filteredExams.find((exam) => String(exam.provimi_id) === String(examFilter))
+      : null;
+
+    if (requestedExam && String(selectedExamId) !== String(examFilter)) {
+      setSelectedExamId(String(examFilter));
+      return;
+    }
+
     if (!hasSelectedExam) {
       setSelectedExamId(String(filteredExams[0].provimi_id));
     }
-  }, [filteredExams, selectedExamId]);
+  }, [examFilter, filteredExams, selectedExamId]);
 
   useEffect(() => {
     if (selectedExamId) {
@@ -191,7 +201,7 @@ function ProfessorGradesPage() {
       <PageHeader
         eyebrow="Professor Grading"
         title="Vendos dhe perditeso nota"
-        description="Fluksi i notimit fillon nga provimet dhe vazhdon direkt te studentet e lendes se zgjedhur."
+        description="Notimi lidhet me paraqitjet e provimeve, keshtu qe shfaqen vetem studentet qe e kane paraqitur provimin."
         actions={
           <>
             <Link
@@ -223,7 +233,7 @@ function ProfessorGradesPage() {
         />
         <StatCard
           icon="users"
-          label="Studentet ne kete provim"
+          label="Paraqitje ne kete provim"
           value={examData?.students?.length || 0}
         />
         <StatCard
@@ -241,7 +251,7 @@ function ProfessorGradesPage() {
             <p className="mt-2 text-sm leading-6 text-slate-500">
               {courseFilter
                 ? "Po shikon vetem provimet e lendes se zgjedhur nga faqja e lendeve."
-                : "Zgjidh nje provim dhe puno direkt me notat e studenteve te regjistruar."}
+                : "Zgjidh nje provim dhe puno direkt me studentet qe e kane paraqitur ate."}
             </p>
           </div>
 
@@ -275,7 +285,12 @@ function ProfessorGradesPage() {
                   {formatDateLabel(selectedExam.data_provimit)} | {selectedExam.afati}
                 </p>
               </div>
-              <StatusBadge tone="info">{selectedExam.total_notash} nota ekzistuese</StatusBadge>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge tone="info">
+                  {selectedExam.total_paraqitjeve || examData?.students?.length || 0} paraqitje
+                </StatusBadge>
+                <StatusBadge tone="dark">{selectedExam.total_notash} nota ekzistuese</StatusBadge>
+              </div>
             </div>
           </div>
         ) : null}
@@ -291,6 +306,7 @@ function ProfessorGradesPage() {
                 <tr>
                   <th>Studenti</th>
                   <th>Email</th>
+                  <th>Paraqitur me</th>
                   <th>Statusi</th>
                   <th>Nota</th>
                   <th>Data</th>
@@ -317,8 +333,11 @@ function ProfessorGradesPage() {
                         </div>
                       </td>
                       <td>{student.email}</td>
+                      <td>{formatDateLabel(student.paraqitur_at)}</td>
                       <td>
-                        <StatusBadge>{student.statusi_regjistrimit}</StatusBadge>
+                        <StatusBadge tone={student.nota_id ? "success" : "info"}>
+                          {student.nota_id ? "Notuar" : student.statusi_paraqitjes}
+                        </StatusBadge>
                       </td>
                       <td>
                         <input
@@ -372,7 +391,7 @@ function ProfessorGradesPage() {
               title="Nuk ka studente per notim"
               description={
                 filteredExams.length
-                  ? "Provimi ekziston, por ende nuk ka studente te regjistruar ne kete lende."
+                  ? "Provimi ekziston, por ende nuk ka studente qe e kane paraqitur ate."
                   : "Nuk ka provime te lidhura me filtrin aktual. Krijo ose filtro nje provim tjeter."
               }
             />

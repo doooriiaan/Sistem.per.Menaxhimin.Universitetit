@@ -60,6 +60,10 @@ const getDuplicateEntryMessage = (err) => {
     return "Ky email profesori ekziston tashme.";
   }
 
+  if (errorMessage.includes("uq_paraqitjet_student_provim")) {
+    return "Ky provim eshte paraqitur tashme nga studenti.";
+  }
+
   if (
     errorMessage.includes("uq_notat_student_provimi") ||
     errorMessage.includes("student_id") && errorMessage.includes("provimi_id")

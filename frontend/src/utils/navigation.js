@@ -22,6 +22,7 @@ const roleConnectionMap = {
   student: [
     { to: "/student/profili", label: "Profili", icon: "user" },
     { to: "/student/regjistrimet", label: "Regjistrimet", icon: "book" },
+    { to: "/student/provimet", label: "Provimet", icon: "calendar" },
     { to: "/student/notat", label: "Notat", icon: "graduation" },
     { href: "/student/profili#documents", label: "Dokumentet", icon: "file" },
   ],

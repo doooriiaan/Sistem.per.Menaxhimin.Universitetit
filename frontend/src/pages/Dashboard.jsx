@@ -854,7 +854,7 @@ function Dashboard() {
                         item.total_students
                       } te vleresuar`}
                       title={item.lenda}
-                      to="/profesor/notat"
+                      to={`/profesor/notat?exam=${item.provimi_id}`}
                     />
                   ))}
                 </div>

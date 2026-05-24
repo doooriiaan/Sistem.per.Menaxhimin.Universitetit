@@ -123,6 +123,19 @@ const isStudentEnrolledInCourse = async (studentId, lendeId) => {
   return rows[0].total > 0;
 };
 
+const hasStudentAppliedForExam = async (studentId, provimiId) => {
+  const [rows] = await connection.query(
+    `
+      SELECT COUNT(*) AS total
+      FROM paraqitjet_provimeve
+      WHERE student_id = ? AND provimi_id = ?
+    `,
+    [studentId, provimiId]
+  );
+
+  return rows[0].total > 0;
+};
+
 const getProfesorProfile = async (profesorId) => {
   const [rows] = await connection.query(
     `
@@ -215,9 +228,27 @@ const getProfesorExams = async (profesorId) => {
         p.afati,
         (
           SELECT COUNT(*)
+          FROM paraqitjet_provimeve pp
+          WHERE pp.provimi_id = p.provimi_id
+        ) AS total_paraqitjeve,
+        (
+          SELECT COUNT(*)
           FROM notat n
           WHERE n.provimi_id = p.provimi_id
-        ) AS total_notash
+        ) AS total_notash,
+        GREATEST(
+          (
+            SELECT COUNT(*)
+            FROM paraqitjet_provimeve pp
+            WHERE pp.provimi_id = p.provimi_id
+          ) -
+          (
+            SELECT COUNT(*)
+            FROM notat n
+            WHERE n.provimi_id = p.provimi_id
+          ),
+          0
+        ) AS pending_notash
       FROM provimet p
       JOIN lendet l ON p.lende_id = l.lende_id
       WHERE p.profesor_id = ?
@@ -265,6 +296,9 @@ const getCourseStudents = async (req, res) => {
     const [rows] = await connection.query(
       `
         SELECT
+          pp.paraqitje_id,
+          pp.statusi AS statusi_paraqitjes,
+          pp.paraqitur_at,
           s.student_id,
           s.emri,
           s.mbiemri,
@@ -430,16 +464,19 @@ const getExamStudents = async (req, res) => {
           n.nota_id,
           n.nota,
           n.data_vendosjes
-        FROM regjistrimet r
-        JOIN studentet s ON r.student_id = s.student_id
+        FROM paraqitjet_provimeve pp
+        JOIN studentet s ON pp.student_id = s.student_id
+        LEFT JOIN regjistrimet r
+          ON r.student_id = pp.student_id
+         AND r.lende_id = ?
         LEFT JOIN notat n
           ON n.student_id = s.student_id
          AND n.provimi_id = ?
-        WHERE r.lende_id = ?
-        GROUP BY s.student_id, s.emri, s.mbiemri, s.email, s.viti_studimit, n.nota_id, n.nota, n.data_vendosjes
+        WHERE pp.provimi_id = ?
+        GROUP BY pp.paraqitje_id, pp.statusi, pp.paraqitur_at, s.student_id, s.emri, s.mbiemri, s.email, s.viti_studimit, n.nota_id, n.nota, n.data_vendosjes
         ORDER BY s.emri, s.mbiemri
       `,
-      [req.params.id, exam.lende_id]
+      [exam.lende_id, req.params.id, req.params.id]
     );
 
     res.json({
@@ -475,6 +512,17 @@ const createGrade = async (req, res) => {
     if (!enrolled) {
       return res.status(400).json({
         message: "Ky student nuk eshte i regjistruar ne lenden e zgjedhur.",
+      });
+    }
+
+    const applied = await hasStudentAppliedForExam(
+      req.body.student_id,
+      req.body.provimi_id
+    );
+
+    if (!applied) {
+      return res.status(400).json({
+        message: "Nota mund te vendoset vetem per studentet qe kane paraqitur provimin.",
       });
     }
 

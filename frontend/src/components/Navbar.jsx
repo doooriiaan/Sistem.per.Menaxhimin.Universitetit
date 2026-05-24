@@ -6,7 +6,6 @@ import {
   getNavigationGroups,
   isGroupActive,
   isPathActive,
-  roleDescriptions,
 } from "../utils/navigation";
 
 function buildOpenSections(groups, pathname, overrides = {}) {

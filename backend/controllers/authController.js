@@ -713,6 +713,11 @@ const getProfesorDashboard = async (profesorId) => {
           WHERE r.lende_id = p.lende_id
         ) AS total_studentesh,
         (
+          SELECT COUNT(*)
+          FROM paraqitjet_provimeve pp
+          WHERE pp.provimi_id = p.provimi_id
+        ) AS total_paraqitjeve,
+        (
           SELECT COUNT(DISTINCT n.student_id)
           FROM notat n
           WHERE n.provimi_id = p.provimi_id
@@ -765,11 +770,11 @@ const getProfesorDashboard = async (profesorId) => {
             SELECT
               p.provimi_id,
               GREATEST(
-                COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+                COUNT(DISTINCT pp.student_id) - COUNT(DISTINCT n.student_id),
                 0
               ) AS pending_count
             FROM provimet p
-            LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+            LEFT JOIN paraqitjet_provimeve pp ON pp.provimi_id = p.provimi_id
             LEFT JOIN notat n ON n.provimi_id = p.provimi_id
             WHERE p.profesor_id = ?
               AND p.data_provimit <= CURDATE()
@@ -782,11 +787,11 @@ const getProfesorDashboard = async (profesorId) => {
           FROM (
             SELECT
               GREATEST(
-                COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+                COUNT(DISTINCT pp.student_id) - COUNT(DISTINCT n.student_id),
                 0
               ) AS pending_count
             FROM provimet p
-            LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+            LEFT JOIN paraqitjet_provimeve pp ON pp.provimi_id = p.provimi_id
             LEFT JOIN notat n ON n.provimi_id = p.provimi_id
             WHERE p.profesor_id = ?
               AND p.data_provimit <= CURDATE()
@@ -823,15 +828,15 @@ const getProfesorDashboard = async (profesorId) => {
         l.emri AS lenda,
         p.data_provimit,
         p.afati,
-        COUNT(DISTINCT r.student_id) AS total_students,
+        COUNT(DISTINCT pp.student_id) AS total_students,
         COUNT(DISTINCT n.student_id) AS total_grades,
         GREATEST(
-          COUNT(DISTINCT r.student_id) - COUNT(DISTINCT n.student_id),
+          COUNT(DISTINCT pp.student_id) - COUNT(DISTINCT n.student_id),
           0
         ) AS pending_grades
       FROM provimet p
       JOIN lendet l ON p.lende_id = l.lende_id
-      LEFT JOIN regjistrimet r ON r.lende_id = p.lende_id
+      LEFT JOIN paraqitjet_provimeve pp ON pp.provimi_id = p.provimi_id
       LEFT JOIN notat n ON n.provimi_id = p.provimi_id
       WHERE p.profesor_id = ?
         AND p.data_provimit <= CURDATE()

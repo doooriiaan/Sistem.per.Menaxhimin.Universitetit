@@ -220,6 +220,42 @@ const ensureRepeatCoursesTable = async () => {
   `);
 };
 
+const ensureExamApplicationsTable = async () => {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS paraqitjet_provimeve (
+      paraqitje_id INT AUTO_INCREMENT PRIMARY KEY,
+      student_id INT NOT NULL,
+      provimi_id INT NOT NULL,
+      statusi VARCHAR(40) NOT NULL DEFAULT 'Paraqitur',
+      paraqitur_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_paraqitjet_student_provim (student_id, provimi_id),
+      FOREIGN KEY (student_id) REFERENCES studentet(student_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+      FOREIGN KEY (provimi_id) REFERENCES provimet(provimi_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+    )
+  `);
+
+  await ensureIndex("paraqitjet_provimeve", "idx_paraqitjet_provimeve_provimi", [
+    "provimi_id",
+  ]);
+
+  await connection.query(`
+    INSERT IGNORE INTO paraqitjet_provimeve
+      (student_id, provimi_id, statusi, paraqitur_at)
+    SELECT
+      n.student_id,
+      n.provimi_id,
+      'Paraqitur',
+      COALESCE(n.data_vendosjes, CURRENT_TIMESTAMP)
+    FROM notat n
+    WHERE n.student_id IS NOT NULL
+      AND n.provimi_id IS NOT NULL
+  `);
+};
+
 const ensureScholarshipTables = async () => {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS bursat (
@@ -681,6 +717,7 @@ const ensureUniversitySetup = async () => {
   await ensureRegistrationDocumentsTable();
   await ensureServicesTables();
   await ensureRepeatCoursesTable();
+  await ensureExamApplicationsTable();
   await ensureScholarshipTables();
   await ensureInternshipsTables();
   await ensureErasmusTables();

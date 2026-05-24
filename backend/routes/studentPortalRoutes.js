@@ -20,6 +20,10 @@ router.post(
   studentServicesController.uploadRegistrationDocument
 );
 router.get("/provimet", studentPortalController.getExams);
+router.get("/provimet/paraqitura", studentPortalController.getExamApplications);
+router.post("/provimet/:id/paraqit", studentPortalController.applyForExam);
+router.delete("/provimet/:id/paraqit", studentPortalController.cancelExamApplication);
+router.get("/transkripta", studentPortalController.getTranscript);
 router.get("/orari", studentPortalController.getSchedule);
 router.get("/sherbimet", studentServicesController.getStudentServices);
 router.post("/sherbimet/kerkesat", studentServicesController.createStudentServiceRequest);
