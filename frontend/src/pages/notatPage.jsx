@@ -34,6 +34,7 @@ function NotatPage() {
   const [provimet, setProvimet] = useState([]);
   const [lendet, setLendet] = useState([]);
   const [profesoret, setProfesoret] = useState([]);
+  const [regjistrimet, setRegjistrimet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,6 +44,7 @@ function NotatPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingNota, setEditingNota] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const studentsLookup = buildLookup(students, "student_id", formatPersonName);
@@ -82,6 +84,15 @@ function NotatPage() {
 
   const notatPagination = paginateItems(filteredNotat, currentPage, pageSize);
   const gradeOptions = withCurrentOption(GRADE_OPTIONS, form.nota);
+  const selectedStudentRegistrations = regjistrimet.filter(
+    (regjistrimi) => String(regjistrimi.student_id) === String(form.student_id)
+  );
+  const registeredCourseIds = new Set(
+    selectedStudentRegistrations.map((regjistrimi) => String(regjistrimi.lende_id))
+  );
+  const filteredProvimet = form.student_id
+    ? provimet.filter((provimi) => registeredCourseIds.has(String(provimi.lende_id)))
+    : [];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -90,13 +101,21 @@ function NotatPage() {
   const fetchNotat = async () => {
     try {
       setLoading(true);
-      const [notatRes, studentsRes, provimetRes, lendetRes, profesoretRes] =
+      const [
+        notatRes,
+        studentsRes,
+        provimetRes,
+        lendetRes,
+        profesoretRes,
+        regjistrimetRes,
+      ] =
         await Promise.all([
           API.get("/notat"),
           API.get("/studentet"),
           API.get("/provimet"),
           API.get("/lendet"),
           API.get("/profesoret"),
+          API.get("/regjistrimet"),
         ]);
 
       setNotat(notatRes.data);
@@ -104,6 +123,7 @@ function NotatPage() {
       setProvimet(provimetRes.data);
       setLendet(lendetRes.data);
       setProfesoret(profesoretRes.data);
+      setRegjistrimet(regjistrimetRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -120,19 +140,50 @@ function NotatPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "student_id") {
+      const nextRegistrations = regjistrimet.filter(
+        (regjistrimi) => String(regjistrimi.student_id) === String(normalizedValue)
+      );
+      const nextCourseIds = new Set(
+        nextRegistrations.map((regjistrimi) => String(regjistrimi.lende_id))
+      );
+      const nextProvimet = provimet.filter((provimi) =>
+        nextCourseIds.has(String(provimi.lende_id))
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        student_id: normalizedValue,
+        provimi_id: getDefaultId(nextProvimet, "provimi_id"),
+      }));
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultStudentId = getDefaultId(students, "student_id");
+    const defaultRegistrations = regjistrimet.filter(
+      (regjistrimi) => String(regjistrimi.student_id) === String(defaultStudentId)
+    );
+    const defaultCourseIds = new Set(
+      defaultRegistrations.map((regjistrimi) => String(regjistrimi.lende_id))
+    );
+    const defaultProvimet = provimet.filter((provimi) =>
+      defaultCourseIds.has(String(provimi.lende_id))
+    );
+
     setEditingNota(null);
     setForm({
       ...emptyForm,
-      student_id: getDefaultId(students, "student_id"),
-      provimi_id: getDefaultId(provimet, "provimi_id"),
+      student_id: defaultStudentId,
+      provimi_id: getDefaultId(defaultProvimet, "provimi_id"),
     });
     setShowModal(true);
     setError("");
@@ -166,6 +217,7 @@ function NotatPage() {
     }
 
     try {
+      setSaving(true);
       if (editingNota) {
         await API.put(`/notat/${editingNota.nota_id}`, form);
       } else {
@@ -184,11 +236,18 @@ function NotatPage() {
             : "Gabim gjate shtimit te notes."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirmDelete("kete note")) {
+    const nota = notat.find((item) => item.nota_id === id);
+    const notaLabel = nota
+      ? `noten "${getLabelById(studentsLookup, nota.student_id, "Studenti")} - ${getLabelById(provimetLookup, nota.provimi_id, "Provimi")}"`
+      : "kete note";
+
+    if (!confirmDelete(notaLabel)) {
       return;
     }
 
@@ -334,38 +393,60 @@ function NotatPage() {
             >
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Studenti</p>
-                <select
-                  name="student_id"
-                  value={form.student_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh studentin</option>
-                  {students.map((student) => (
-                    <option key={student.student_id} value={student.student_id}>
-                      {formatPersonName(student)}
-                    </option>
-                  ))}
-                </select>
+                {editingNota ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(studentsLookup, form.student_id, "Studenti")}
+                  </div>
+                ) : (
+                  <select
+                    name="student_id"
+                    value={form.student_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh studentin</option>
+                    {students.map((student) => (
+                      <option key={student.student_id} value={student.student_id}>
+                        {formatPersonName(student)}
+                      </option>
+                    ))}
+                    {students.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka studente te regjistruar
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Provimi</p>
-                <select
-                  name="provimi_id"
-                  value={form.provimi_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh provimin</option>
-                  {provimet.map((provimi) => (
-                    <option key={provimi.provimi_id} value={provimi.provimi_id}>
-                      {formatExamName(provimi, lendetLookup, profesoretLookup)}
-                    </option>
-                  ))}
-                </select>
+                {editingNota ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(provimetLookup, form.provimi_id, "Provimi")}
+                  </div>
+                ) : (
+                  <select
+                    name="provimi_id"
+                    value={form.provimi_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh provimin</option>
+                    {filteredProvimet.map((provimi) => (
+                      <option key={provimi.provimi_id} value={provimi.provimi_id}>
+                        {formatExamName(provimi, lendetLookup, profesoretLookup)}
+                      </option>
+                    ))}
+                    {filteredProvimet.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka provime per kete student
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -410,9 +491,10 @@ function NotatPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  Ruaj
+                  {saving ? "Duke ruajtur..." : "Ruaj"}
                 </button>
               </div>
             </form>

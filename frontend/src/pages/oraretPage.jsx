@@ -14,6 +14,7 @@ import {
   formatPersonName,
   getDefaultId,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import {
@@ -29,6 +30,7 @@ const emptyForm = {
   dita: DAY_OPTIONS[0].value,
   ora_fillimit: "",
   ora_mbarimit: "",
+  salla_id: "",
   salla: "",
 };
 
@@ -36,6 +38,7 @@ function OraretPage() {
   const [oraret, setOraret] = useState([]);
   const [lendet, setLendet] = useState([]);
   const [profesoret, setProfesoret] = useState([]);
+  const [sallat, setSallat] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,6 +48,7 @@ function OraretPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingOrari, setEditingOrari] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const lendetLookup = buildLookup(lendet, "lende_id", formatCourseName);
@@ -82,6 +86,19 @@ function OraretPage() {
     "Te gjitha ditet"
   );
   const dayOptions = withCurrentOption(DAY_OPTIONS, form.dita);
+  const selectedLenda = getSelectedItem(lendet, "lende_id", form.lende_id);
+  const filteredProfesoret = selectedLenda
+    ? profesoret.filter(
+        (profesor) =>
+          String(profesor.profesor_id) === String(selectedLenda.profesor_id)
+      )
+    : [];
+  const availableSallat = sallat.filter(
+    (salla) =>
+      salla.statusi === "Aktive" ||
+      String(salla.salla_id) === String(form.salla_id) ||
+      salla.emri === form.salla
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -90,15 +107,17 @@ function OraretPage() {
   const fetchOraret = async () => {
     try {
       setLoading(true);
-      const [oraretRes, lendetRes, profesoretRes] = await Promise.all([
+      const [oraretRes, lendetRes, profesoretRes, sallatRes] = await Promise.all([
         API.get("/oraret"),
         API.get("/lendet"),
         API.get("/profesoret"),
+        API.get("/sallat"),
       ]);
 
       setOraret(oraretRes.data);
       setLendet(lendetRes.data);
       setProfesoret(profesoretRes.data);
+      setSallat(sallatRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -115,25 +134,58 @@ function OraretPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "lende_id") {
+      const nextLenda = getSelectedItem(lendet, "lende_id", normalizedValue);
+
+      setForm((prev) => ({
+        ...prev,
+        lende_id: normalizedValue,
+        profesor_id: nextLenda?.profesor_id || "",
+      }));
+      return;
+    }
+
+    if (name === "salla_id") {
+      const selectedSalla = getSelectedItem(sallat, "salla_id", normalizedValue);
+
+      setForm((prev) => ({
+        ...prev,
+        salla_id: normalizedValue,
+        salla: selectedSalla?.emri || "",
+      }));
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultLendaId = getDefaultId(lendet, "lende_id");
+    const defaultLenda = getSelectedItem(lendet, "lende_id", defaultLendaId);
+
     setEditingOrari(null);
     setForm({
       ...emptyForm,
-      lende_id: getDefaultId(lendet, "lende_id"),
-      profesor_id: getDefaultId(profesoret, "profesor_id"),
+      lende_id: defaultLendaId,
+      profesor_id: defaultLenda?.profesor_id || "",
+      salla_id:
+        sallat.find((salla) => salla.statusi === "Aktive")?.salla_id || "",
+      salla: sallat.find((salla) => salla.statusi === "Aktive")?.emri || "",
     });
     setShowModal(true);
     setError("");
   };
 
   const openEditModal = (orari) => {
+    const selectedSalla = orari.salla_id
+      ? getSelectedItem(sallat, "salla_id", orari.salla_id)
+      : sallat.find((salla) => salla.emri === orari.salla);
+
     setEditingOrari(orari);
     setForm({
       lende_id: orari.lende_id || 1,
@@ -141,6 +193,7 @@ function OraretPage() {
       dita: orari.dita || "",
       ora_fillimit: orari.ora_fillimit || "",
       ora_mbarimit: orari.ora_mbarimit || "",
+      salla_id: selectedSalla?.salla_id || "",
       salla: orari.salla || "",
     });
     setShowModal(true);
@@ -163,6 +216,7 @@ function OraretPage() {
     }
 
     try {
+      setSaving(true);
       if (editingOrari) {
         await API.put(`/oraret/${editingOrari.orari_id}`, form);
       } else {
@@ -181,11 +235,18 @@ function OraretPage() {
             : "Gabim gjate shtimit te orarit."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirmDelete("kete orar")) {
+    const orari = oraret.find((item) => item.orari_id === id);
+    const orariLabel = orari
+      ? `orarin "${getLabelById(lendetLookup, orari.lende_id, "Lenda")}"`
+      : "kete orar";
+
+    if (!confirmDelete(orariLabel)) {
       return;
     }
 
@@ -333,40 +394,62 @@ function OraretPage() {
             >
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Lenda</p>
-                <select
-                  name="lende_id"
-                  value={form.lende_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh lenden</option>
-                  {lendet.map((lenda) => (
-                    <option key={lenda.lende_id} value={lenda.lende_id}>
-                      {formatCourseName(lenda)}
-                    </option>
-                  ))}
-                </select>
+                {editingOrari ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(lendetLookup, form.lende_id, "Lenda")}
+                  </div>
+                ) : (
+                  <select
+                    name="lende_id"
+                    value={form.lende_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh lenden</option>
+                    {lendet.map((lenda) => (
+                      <option key={lenda.lende_id} value={lenda.lende_id}>
+                        {formatCourseName(lenda)}
+                      </option>
+                    ))}
+                    {lendet.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka lende te regjistruara
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Profesori
                 </p>
-                <select
-                  name="profesor_id"
-                  value={form.profesor_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh profesorin</option>
-                  {profesoret.map((profesor) => (
-                    <option key={profesor.profesor_id} value={profesor.profesor_id}>
-                      {formatPersonName(profesor)}
-                    </option>
-                  ))}
-                </select>
+                {editingOrari ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(profesoretLookup, form.profesor_id, "Profesori")}
+                  </div>
+                ) : (
+                  <select
+                    name="profesor_id"
+                    value={form.profesor_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh profesorin</option>
+                    {filteredProfesoret.map((profesor) => (
+                      <option key={profesor.profesor_id} value={profesor.profesor_id}>
+                        {formatPersonName(profesor)}
+                      </option>
+                    ))}
+                    {filteredProfesoret.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka profesor per lenden e zgjedhur
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -388,13 +471,25 @@ function OraretPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Salla</p>
-                <input
-                  name="salla"
-                  value={form.salla}
+                <select
+                  name="salla_id"
+                  value={form.salla_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh sallen</option>
+                  {availableSallat.map((salla) => (
+                    <option key={salla.salla_id} value={salla.salla_id}>
+                      {salla.emri} | {salla.kapaciteti} vende
+                    </option>
+                  ))}
+                  {availableSallat.length === 0 && (
+                    <option value="" disabled>
+                      Nuk ka salla aktive
+                    </option>
+                  )}
+                </select>
               </div>
 
               <div>
@@ -435,9 +530,10 @@ function OraretPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  Ruaj
+                  {saving ? "Duke ruajtur..." : "Ruaj"}
                 </button>
               </div>
             </form>

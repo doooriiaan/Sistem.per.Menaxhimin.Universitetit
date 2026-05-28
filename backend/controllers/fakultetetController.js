@@ -19,6 +19,25 @@ const validateFakultetiPayload = (payload) => {
   return null;
 };
 
+const isProfesorInFakulteti = async (profesorId, fakultetiId) => {
+  if (!profesorId) {
+    return true;
+  }
+
+  const [rows] = await db.promise().query(
+    `
+      SELECT p.profesor_id
+      FROM profesoret p
+      JOIN departamentet d ON p.departamenti_id = d.departament_id
+      WHERE p.profesor_id = ? AND d.fakulteti_id = ?
+      LIMIT 1
+    `,
+    [profesorId, fakultetiId]
+  );
+
+  return rows.length > 0;
+};
+
 const getAllFakultetet = (req, res) => {
   const sql = "SELECT * FROM fakultetet";
 
@@ -68,7 +87,7 @@ const createFakulteti = (req, res) => {
   });
 };
 
-const updateFakulteti = (req, res) => {
+const updateFakulteti = async (req, res) => {
   const { id } = req.params;
   const validationError = validateFakultetiPayload(req.body);
 
@@ -77,6 +96,19 @@ const updateFakulteti = (req, res) => {
   }
 
   const { emri, dekani_id, adresa, telefoni, email } = req.body;
+
+  try {
+    const isValidRelation = await isProfesorInFakulteti(dekani_id, id);
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Dekani duhet te jete profesor ne fakultetin e zgjedhur."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te dekanit.");
+  }
 
   const sql = `
     UPDATE fakultetet

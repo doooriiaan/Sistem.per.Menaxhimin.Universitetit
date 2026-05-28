@@ -32,6 +32,22 @@ const validateLendaPayload = (payload) => {
   return null;
 };
 
+const isProfesorValidForDrejtim = async (drejtimiId, profesorId) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT p.profesor_id
+      FROM profesoret p
+      JOIN departamentet dep ON p.departamenti_id = dep.departament_id
+      JOIN drejtimet d ON d.fakulteti_id = dep.fakulteti_id
+      WHERE d.drejtim_id = ? AND p.profesor_id = ?
+      LIMIT 1
+    `,
+    [drejtimiId, profesorId]
+  );
+
+  return rows.length > 0;
+};
+
 const getalllendet = (req, res) => {
   const sql = "SELECT * FROM lendet";
 
@@ -61,7 +77,7 @@ const getlendabyid = (req, res) => {
   });
 };
 
-const createlenda = (req, res) => {
+const createlenda = async (req, res) => {
   const validationError = validateLendaPayload(req.body);
 
   if (validationError) {
@@ -78,6 +94,22 @@ const createlenda = (req, res) => {
     lloji,
     pershkrimi
   } = req.body;
+
+  try {
+    const isValidRelation = await isProfesorValidForDrejtim(
+      drejtimi_id,
+      profesor_id
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Profesori duhet te jete ne fakultetin e drejtimit te zgjedhur."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te profesorit.");
+  }
 
   const sql = `
     INSERT INTO lendet
@@ -101,7 +133,7 @@ const createlenda = (req, res) => {
   );
 };
 
-const updatelenda = (req, res) => {
+const updatelenda = async (req, res) => {
   const { id } = req.params;
   const validationError = validateLendaPayload(req.body);
 
@@ -119,6 +151,22 @@ const updatelenda = (req, res) => {
     lloji,
     pershkrimi
   } = req.body;
+
+  try {
+    const isValidRelation = await isProfesorValidForDrejtim(
+      drejtimi_id,
+      profesor_id
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Profesori duhet te jete ne fakultetin e drejtimit te zgjedhur."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te profesorit.");
+  }
 
   const sql = `
     UPDATE lendet

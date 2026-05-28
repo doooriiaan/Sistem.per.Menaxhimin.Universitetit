@@ -21,6 +21,21 @@ const validateRegjistrimiPayload = (payload) => {
   return null;
 };
 
+const isLendaValidForStudent = async (studentId, lendeId, semestri) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT l.lende_id
+      FROM studentet s
+      JOIN lendet l ON s.drejtimi_id = l.drejtimi_id
+      WHERE s.student_id = ? AND l.lende_id = ? AND l.semestri = ?
+      LIMIT 1
+    `,
+    [studentId, lendeId, semestri]
+  );
+
+  return rows.length > 0;
+};
+
 const getAllRegjistrimet = (req, res) => {
   const sql = `
     SELECT
@@ -75,7 +90,7 @@ const getRegjistrimiById = (req, res) => {
   });
 };
 
-const createRegjistrimi = (req, res) => {
+const createRegjistrimi = async (req, res) => {
   const validationError = validateRegjistrimiPayload(req.body);
 
   if (validationError) {
@@ -89,6 +104,23 @@ const createRegjistrimi = (req, res) => {
     viti_akademik,
     statusi
   } = req.body;
+
+  try {
+    const isValidRelation = await isLendaValidForStudent(
+      student_id,
+      lende_id,
+      semestri
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Lenda duhet te jete ne drejtimin dhe semestrin e studentit."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te lendes.");
+  }
 
   const sql = `
     INSERT INTO regjistrimet
@@ -110,7 +142,7 @@ const createRegjistrimi = (req, res) => {
   );
 };
 
-const updateRegjistrimi = (req, res) => {
+const updateRegjistrimi = async (req, res) => {
   const { id } = req.params;
   const validationError = validateRegjistrimiPayload(req.body);
 
@@ -125,6 +157,23 @@ const updateRegjistrimi = (req, res) => {
     viti_akademik,
     statusi
   } = req.body;
+
+  try {
+    const isValidRelation = await isLendaValidForStudent(
+      student_id,
+      lende_id,
+      semestri
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Lenda duhet te jete ne drejtimin dhe semestrin e studentit."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te lendes.");
+  }
 
   const sql = `
     UPDATE regjistrimet

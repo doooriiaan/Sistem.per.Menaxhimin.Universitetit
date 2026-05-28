@@ -15,6 +15,7 @@ const validateOrariPayload = (payload) => {
     dita,
     ora_fillimit,
     ora_mbarimit,
+    salla_id,
     salla,
   } = payload;
 
@@ -26,9 +27,75 @@ const validateOrariPayload = (payload) => {
   if (!areTimesOrdered(ora_fillimit, ora_mbarimit)) {
     return "Ora e mbarimit duhet te jete pas ores se fillimit.";
   }
-  if (!isNonEmptyString(salla)) return "Salla eshte e detyrueshme.";
+  if (!isPositiveInteger(salla_id) && !isNonEmptyString(salla)) {
+    return "Salla eshte e detyrueshme.";
+  }
 
   return null;
+};
+
+const isProfesorAssignedToLenda = async (lendeId, profesorId) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT lende_id
+      FROM lendet
+      WHERE lende_id = ? AND profesor_id = ?
+      LIMIT 1
+    `,
+    [lendeId, profesorId]
+  );
+
+  return rows.length > 0;
+};
+
+const resolveSalla = async ({ salla_id, salla }) => {
+  if (isPositiveInteger(salla_id)) {
+    const [rows] = await db.promise().query(
+      "SELECT salla_id, emri FROM sallat WHERE salla_id = ? LIMIT 1",
+      [salla_id]
+    );
+
+    return rows[0] || null;
+  }
+
+  const [rows] = await db.promise().query(
+    "SELECT salla_id, emri FROM sallat WHERE emri = ? LIMIT 1",
+    [salla]
+  );
+
+  return rows[0] || null;
+};
+
+const hasScheduleConflict = async ({
+  dita,
+  ora_fillimit,
+  ora_mbarimit,
+  profesor_id,
+  salla_id,
+  excludeOrariId = null,
+}) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT orari_id
+      FROM oraret
+      WHERE dita = ?
+        AND (? < ora_mbarimit AND ? > ora_fillimit)
+        AND (profesor_id = ? OR salla_id = ?)
+        AND (? IS NULL OR orari_id <> ?)
+      LIMIT 1
+    `,
+    [
+      dita,
+      ora_fillimit,
+      ora_mbarimit,
+      profesor_id,
+      salla_id,
+      excludeOrariId,
+      excludeOrariId,
+    ]
+  );
+
+  return rows.length > 0;
 };
 
 const getAllOraret = (req, res) => {
@@ -56,7 +123,7 @@ const getOrariById = (req, res) => {
   });
 };
 
-const createOrari = (req, res) => {
+const createOrari = async (req, res) => {
   const validationError = validateOrariPayload(req.body);
 
   if (validationError) {
@@ -69,30 +136,76 @@ const createOrari = (req, res) => {
     dita,
     ora_fillimit,
     ora_mbarimit,
+    salla_id,
     salla
   } = req.body;
 
-  const sql = `
-    INSERT INTO oraret
-    (lende_id, profesor_id, dita, ora_fillimit, ora_mbarimit, salla)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
+  try {
+    const isValidRelation = await isProfesorAssignedToLenda(
+      lende_id,
+      profesor_id
+    );
 
-  db.query(
-    sql,
-    [lende_id, profesor_id, dita, ora_fillimit, ora_mbarimit, salla],
-    (err, result) => {
-      if (err) return handleDbError(res, err, "Gabim gjate shtimit te orarit.");
-
-      res.status(201).json({
-        message: "Orari u shtua",
-        id: result.insertId
-      });
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Profesori duhet te jete profesori i lendes se zgjedhur."
+      );
     }
-  );
+
+    const selectedSalla = await resolveSalla({ salla_id, salla });
+
+    if (!selectedSalla) {
+      return sendValidationError(res, "Salla duhet te zgjidhet nga lista e sallave.");
+    }
+
+    if (
+      await hasScheduleConflict({
+        dita,
+        ora_fillimit,
+        ora_mbarimit,
+        profesor_id,
+        salla_id: selectedSalla.salla_id,
+      })
+    ) {
+      return sendValidationError(
+        res,
+        "Ky profesor ose kjo salle ka tashme orar ne kete interval."
+      );
+    }
+
+    const sql = `
+      INSERT INTO oraret
+      (lende_id, profesor_id, dita, ora_fillimit, ora_mbarimit, salla_id, salla)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+      sql,
+      [
+        lende_id,
+        profesor_id,
+        dita,
+        ora_fillimit,
+        ora_mbarimit,
+        selectedSalla.salla_id,
+        selectedSalla.emri,
+      ],
+      (err, result) => {
+        if (err) return handleDbError(res, err, "Gabim gjate shtimit te orarit.");
+
+        res.status(201).json({
+          message: "Orari u shtua",
+          id: result.insertId
+        });
+      }
+    );
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te orarit.");
+  }
 };
 
-const updateOrari = (req, res) => {
+const updateOrari = async (req, res) => {
   const { id } = req.params;
   const validationError = validateOrariPayload(req.body);
 
@@ -106,28 +219,76 @@ const updateOrari = (req, res) => {
     dita,
     ora_fillimit,
     ora_mbarimit,
+    salla_id,
     salla
   } = req.body;
 
-  const sql = `
-    UPDATE oraret
-    SET lende_id = ?, profesor_id = ?, dita = ?, ora_fillimit = ?, ora_mbarimit = ?, salla = ?
-    WHERE orari_id = ?
-  `;
+  try {
+    const isValidRelation = await isProfesorAssignedToLenda(
+      lende_id,
+      profesor_id
+    );
 
-  db.query(
-    sql,
-    [lende_id, profesor_id, dita, ora_fillimit, ora_mbarimit, salla, id],
-    (err, result) => {
-      if (err) return handleDbError(res, err, "Gabim gjate perditesimit te orarit.");
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Orari nuk u gjet" });
-      }
-
-      res.json({ message: "Orari u perditesua" });
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Profesori duhet te jete profesori i lendes se zgjedhur."
+      );
     }
-  );
+
+    const selectedSalla = await resolveSalla({ salla_id, salla });
+
+    if (!selectedSalla) {
+      return sendValidationError(res, "Salla duhet te zgjidhet nga lista e sallave.");
+    }
+
+    if (
+      await hasScheduleConflict({
+        dita,
+        ora_fillimit,
+        ora_mbarimit,
+        profesor_id,
+        salla_id: selectedSalla.salla_id,
+        excludeOrariId: id,
+      })
+    ) {
+      return sendValidationError(
+        res,
+        "Ky profesor ose kjo salle ka tashme orar ne kete interval."
+      );
+    }
+
+    const sql = `
+      UPDATE oraret
+      SET lende_id = ?, profesor_id = ?, dita = ?, ora_fillimit = ?, ora_mbarimit = ?, salla_id = ?, salla = ?
+      WHERE orari_id = ?
+    `;
+
+    db.query(
+      sql,
+      [
+        lende_id,
+        profesor_id,
+        dita,
+        ora_fillimit,
+        ora_mbarimit,
+        selectedSalla.salla_id,
+        selectedSalla.emri,
+        id,
+      ],
+      (err, result) => {
+        if (err) return handleDbError(res, err, "Gabim gjate perditesimit te orarit.");
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Orari nuk u gjet" });
+        }
+
+        res.json({ message: "Orari u perditesua" });
+      }
+    );
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te orarit.");
+  }
 };
 
 const deleteOrari = (req, res) => {

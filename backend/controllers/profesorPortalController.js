@@ -11,7 +11,48 @@ const {
 
 const connection = db.promise();
 
-const validateExamPayload = ({ lende_id, data_provimit, ora, salla, afati }) => {
+const resolveSalla = async ({ salla_id, salla }) => {
+  if (isPositiveInteger(salla_id)) {
+    const [rows] = await connection.query(
+      "SELECT salla_id, emri FROM sallat WHERE salla_id = ? LIMIT 1",
+      [salla_id]
+    );
+
+    return rows[0] || null;
+  }
+
+  const [rows] = await connection.query(
+    "SELECT salla_id, emri FROM sallat WHERE emri = ? LIMIT 1",
+    [salla]
+  );
+
+  return rows[0] || null;
+};
+
+const hasExamConflict = async ({
+  data_provimit,
+  ora,
+  profesor_id,
+  salla_id,
+  excludeProvimiId = null,
+}) => {
+  const [rows] = await connection.query(
+    `
+      SELECT provimi_id
+      FROM provimet
+      WHERE data_provimit = ?
+        AND ora = ?
+        AND (profesor_id = ? OR salla_id = ?)
+        AND (? IS NULL OR provimi_id <> ?)
+      LIMIT 1
+    `,
+    [data_provimit, ora, profesor_id, salla_id, excludeProvimiId, excludeProvimiId]
+  );
+
+  return rows.length > 0;
+};
+
+const validateExamPayload = ({ lende_id, data_provimit, ora, salla_id, salla, afati }) => {
   if (!isPositiveInteger(lende_id)) {
     return "Lenda duhet te zgjidhet sakte.";
   }
@@ -24,7 +65,7 @@ const validateExamPayload = ({ lende_id, data_provimit, ora, salla, afati }) => 
     return "Ora e provimit nuk eshte valide.";
   }
 
-  if (!isNonEmptyString(salla)) {
+  if (!isPositiveInteger(salla_id) && !isNonEmptyString(salla)) {
     return "Salla eshte e detyrueshme.";
   }
 
@@ -95,6 +136,7 @@ const getOwnedExam = async (profesorId, provimiId) => {
         p.profesor_id,
         p.data_provimit,
         p.ora,
+        p.salla_id,
         p.salla,
         p.afati,
         l.emri AS lenda,
@@ -224,6 +266,7 @@ const getProfesorExams = async (profesorId) => {
         l.kodi,
         p.data_provimit,
         p.ora,
+        p.salla_id,
         p.salla,
         p.afati,
         (
@@ -352,17 +395,38 @@ const createExam = async (req, res) => {
       });
     }
 
+    const selectedSalla = await resolveSalla(req.body);
+
+    if (!selectedSalla) {
+      return sendValidationError(res, "Salla duhet te zgjidhet nga lista e sallave.");
+    }
+
+    if (
+      await hasExamConflict({
+        data_provimit: req.body.data_provimit,
+        ora: req.body.ora,
+        profesor_id: req.user.profesor_id,
+        salla_id: selectedSalla.salla_id,
+      })
+    ) {
+      return sendValidationError(
+        res,
+        "Ky profesor ose kjo salle ka tashme provim ne kete date dhe ore."
+      );
+    }
+
     const [result] = await connection.query(
       `
-        INSERT INTO provimet (lende_id, profesor_id, data_provimit, ora, salla, afati)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO provimet (lende_id, profesor_id, data_provimit, ora, salla_id, salla, afati)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
         req.body.lende_id,
         req.user.profesor_id,
         req.body.data_provimit,
         req.body.ora,
-        req.body.salla.trim(),
+        selectedSalla.salla_id,
+        selectedSalla.emri,
         req.body.afati.trim(),
       ]
     );
@@ -398,17 +462,39 @@ const updateExam = async (req, res) => {
       });
     }
 
+    const selectedSalla = await resolveSalla(req.body);
+
+    if (!selectedSalla) {
+      return sendValidationError(res, "Salla duhet te zgjidhet nga lista e sallave.");
+    }
+
+    if (
+      await hasExamConflict({
+        data_provimit: req.body.data_provimit,
+        ora: req.body.ora,
+        profesor_id: req.user.profesor_id,
+        salla_id: selectedSalla.salla_id,
+        excludeProvimiId: req.params.id,
+      })
+    ) {
+      return sendValidationError(
+        res,
+        "Ky profesor ose kjo salle ka tashme provim ne kete date dhe ore."
+      );
+    }
+
     await connection.query(
       `
         UPDATE provimet
-        SET lende_id = ?, data_provimit = ?, ora = ?, salla = ?, afati = ?
+        SET lende_id = ?, data_provimit = ?, ora = ?, salla_id = ?, salla = ?, afati = ?
         WHERE provimi_id = ? AND profesor_id = ?
       `,
       [
         req.body.lende_id,
         req.body.data_provimit,
         req.body.ora,
-        req.body.salla.trim(),
+        selectedSalla.salla_id,
+        selectedSalla.emri,
         req.body.afati.trim(),
         req.params.id,
         req.user.profesor_id,

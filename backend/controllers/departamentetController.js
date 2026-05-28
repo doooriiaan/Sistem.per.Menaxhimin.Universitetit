@@ -18,6 +18,25 @@ const validateDepartamentiPayload = (payload) => {
   return null;
 };
 
+const isProfesorInFakulteti = async (profesorId, fakultetiId) => {
+  if (!profesorId) {
+    return true;
+  }
+
+  const [rows] = await db.promise().query(
+    `
+      SELECT p.profesor_id
+      FROM profesoret p
+      JOIN departamentet d ON p.departamenti_id = d.departament_id
+      WHERE p.profesor_id = ? AND d.fakulteti_id = ?
+      LIMIT 1
+    `,
+    [profesorId, fakultetiId]
+  );
+
+  return rows.length > 0;
+};
+
 const getAllDepartamentet = (req, res) => {
   db.query("SELECT * FROM departamentet", (err, results) => {
     if (err) return handleDbError(res, err, "Gabim gjate marrjes se departamenteve.");
@@ -43,7 +62,7 @@ const getDepartamentiById = (req, res) => {
   );
 };
 
-const createDepartamenti = (req, res) => {
+const createDepartamenti = async (req, res) => {
   const validationError = validateDepartamentiPayload(req.body);
 
   if (validationError) {
@@ -51,6 +70,19 @@ const createDepartamenti = (req, res) => {
   }
 
   const { emri, fakulteti_id, shefi_id, pershkrimi } = req.body;
+
+  try {
+    const isValidRelation = await isProfesorInFakulteti(shefi_id, fakulteti_id);
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Shefi duhet te jete profesor ne fakultetin e departamentit."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te shefit.");
+  }
 
   const sql = `
     INSERT INTO departamentet (emri, fakulteti_id, shefi_id, pershkrimi)
@@ -67,7 +99,7 @@ const createDepartamenti = (req, res) => {
   });
 };
 
-const updateDepartamenti = (req, res) => {
+const updateDepartamenti = async (req, res) => {
   const { id } = req.params;
   const validationError = validateDepartamentiPayload(req.body);
 
@@ -76,6 +108,19 @@ const updateDepartamenti = (req, res) => {
   }
 
   const { emri, fakulteti_id, shefi_id, pershkrimi } = req.body;
+
+  try {
+    const isValidRelation = await isProfesorInFakulteti(shefi_id, fakulteti_id);
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Shefi duhet te jete profesor ne fakultetin e departamentit."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te shefit.");
+  }
 
   const sql = `
     UPDATE departamentet

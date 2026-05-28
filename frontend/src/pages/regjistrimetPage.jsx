@@ -20,6 +20,7 @@ import {
   formatPersonName,
   getDefaultId,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import {
@@ -55,6 +56,7 @@ function RegjistrimetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingRegjistrimi, setEditingRegjistrimi] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [documentModalRegistration, setDocumentModalRegistration] = useState(null);
   const [registrationDocuments, setRegistrationDocuments] = useState([]);
 
@@ -99,6 +101,14 @@ function RegjistrimetPage() {
     defaultAcademicYearOptions,
     form.viti_akademik
   );
+  const selectedStudent = getSelectedItem(students, "student_id", form.student_id);
+  const filteredLendet = selectedStudent
+    ? lendet.filter(
+        (lenda) =>
+          String(lenda.drejtimi_id) === String(selectedStudent.drejtimi_id) &&
+          String(lenda.semestri) === String(form.semestri)
+      )
+    : [];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -132,19 +142,52 @@ function RegjistrimetPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "student_id" || name === "semestri") {
+      const nextStudentId =
+        name === "student_id" ? normalizedValue : form.student_id;
+      const nextSemestri = name === "semestri" ? normalizedValue : form.semestri;
+      const nextStudent = getSelectedItem(students, "student_id", nextStudentId);
+      const nextLendet = nextStudent
+        ? lendet.filter(
+            (lenda) =>
+              String(lenda.drejtimi_id) === String(nextStudent.drejtimi_id) &&
+              String(lenda.semestri) === String(nextSemestri)
+          )
+        : [];
+
+      setForm((prev) => ({
+        ...prev,
+        [name]: normalizedValue,
+        lende_id: getDefaultId(nextLendet, "lende_id"),
+      }));
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultStudentId = getDefaultId(students, "student_id");
+    const defaultStudent = getSelectedItem(students, "student_id", defaultStudentId);
+    const defaultSemestri = emptyForm.semestri;
+    const defaultLendet = defaultStudent
+      ? lendet.filter(
+          (lenda) =>
+            String(lenda.drejtimi_id) === String(defaultStudent.drejtimi_id) &&
+            String(lenda.semestri) === String(defaultSemestri)
+        )
+      : [];
+
     setEditingRegjistrimi(null);
     setForm({
       ...emptyForm,
-      student_id: getDefaultId(students, "student_id"),
-      lende_id: getDefaultId(lendet, "lende_id"),
+      student_id: defaultStudentId,
+      lende_id: getDefaultId(defaultLendet, "lende_id"),
     });
     setShowModal(true);
     setError("");
@@ -179,6 +222,7 @@ function RegjistrimetPage() {
     }
 
     try {
+      setSaving(true);
       if (editingRegjistrimi) {
         await API.put(
           `/regjistrimet/${editingRegjistrimi.regjistrimi_id}`,
@@ -200,11 +244,18 @@ function RegjistrimetPage() {
             : "Gabim gjate shtimit te regjistrimit."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirmDelete("kete regjistrim")) {
+    const regjistrimi = regjistrimet.find((item) => item.regjistrimi_id === id);
+    const regjistrimiLabel = regjistrimi
+      ? `regjistrimin "${getLabelById(studentsLookup, regjistrimi.student_id, "Studenti")} - ${getLabelById(lendetLookup, regjistrimi.lende_id, "Lenda")}"`
+      : "kete regjistrim";
+
+    if (!confirmDelete(regjistrimiLabel)) {
       return;
     }
 
@@ -377,38 +428,60 @@ function RegjistrimetPage() {
             >
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Studenti</p>
-                <select
-                  name="student_id"
-                  value={form.student_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh studentin</option>
-                  {students.map((student) => (
-                    <option key={student.student_id} value={student.student_id}>
-                      {formatPersonName(student)}
-                    </option>
-                  ))}
-                </select>
+                {editingRegjistrimi ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(studentsLookup, form.student_id, "Studenti")}
+                  </div>
+                ) : (
+                  <select
+                    name="student_id"
+                    value={form.student_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh studentin</option>
+                    {students.map((student) => (
+                      <option key={student.student_id} value={student.student_id}>
+                        {formatPersonName(student)}
+                      </option>
+                    ))}
+                    {students.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka studente te regjistruar
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Lenda</p>
-                <select
-                  name="lende_id"
-                  value={form.lende_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh lenden</option>
-                  {lendet.map((lenda) => (
-                    <option key={lenda.lende_id} value={lenda.lende_id}>
-                      {formatCourseName(lenda)}
-                    </option>
-                  ))}
-                </select>
+                {editingRegjistrimi ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(lendetLookup, form.lende_id, "Lenda")}
+                  </div>
+                ) : (
+                  <select
+                    name="lende_id"
+                    value={form.lende_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh lenden</option>
+                    {filteredLendet.map((lenda) => (
+                      <option key={lenda.lende_id} value={lenda.lende_id}>
+                        {formatCourseName(lenda)}
+                      </option>
+                    ))}
+                    {filteredLendet.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka lende per studentin dhe semestrin
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -476,9 +549,10 @@ function RegjistrimetPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  Ruaj
+                  {saving ? "Duke ruajtur..." : "Ruaj"}
                 </button>
               </div>
             </form>

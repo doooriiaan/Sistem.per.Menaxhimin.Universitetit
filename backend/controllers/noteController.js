@@ -18,6 +18,21 @@ const validateNotaPayload = (payload) => {
   return null;
 };
 
+const isProvimiValidForStudent = async (studentId, provimiId) => {
+  const [rows] = await db.promise().query(
+    `
+      SELECT p.provimi_id
+      FROM provimet p
+      JOIN regjistrimet r ON r.lende_id = p.lende_id
+      WHERE r.student_id = ? AND p.provimi_id = ?
+      LIMIT 1
+    `,
+    [studentId, provimiId]
+  );
+
+  return rows.length > 0;
+};
+
 const getallnotat = (req, res) => {
   const sql = "SELECT * FROM notat";
 
@@ -42,7 +57,7 @@ const getnotabyid = (req, res) => {
   });
 };
 
-const createnota = (req, res) => {
+const createnota = async (req, res) => {
   const validationError = validateNotaPayload(req.body);
 
   if (validationError) {
@@ -50,6 +65,22 @@ const createnota = (req, res) => {
   }
 
   const { student_id, provimi_id, nota, data_vendosjes } = req.body;
+
+  try {
+    const isValidRelation = await isProvimiValidForStudent(
+      student_id,
+      provimi_id
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Provimi duhet t'i perkase nje lende ku studenti eshte i regjistruar."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te provimit.");
+  }
 
   const sql = `
     INSERT INTO notat
@@ -71,7 +102,7 @@ const createnota = (req, res) => {
   );
 };
 
-const updatenota = (req, res) => {
+const updatenota = async (req, res) => {
   const { id } = req.params;
   const validationError = validateNotaPayload(req.body);
 
@@ -80,6 +111,22 @@ const updatenota = (req, res) => {
   }
 
   const { student_id, provimi_id, nota, data_vendosjes } = req.body;
+
+  try {
+    const isValidRelation = await isProvimiValidForStudent(
+      student_id,
+      provimi_id
+    );
+
+    if (!isValidRelation) {
+      return sendValidationError(
+        res,
+        "Provimi duhet t'i perkase nje lende ku studenti eshte i regjistruar."
+      );
+    }
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate validimit te provimit.");
+  }
 
   const sql = `
     UPDATE notat

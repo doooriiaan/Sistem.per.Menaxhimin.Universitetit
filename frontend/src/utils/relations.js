@@ -12,6 +12,9 @@ export const normalizeFormValue = (name, value, type) => {
 export const getDefaultId = (items, idField) =>
   items.length > 0 ? items[0][idField] : "";
 
+export const getSelectedItem = (items, idField, selectedId) =>
+  items.find((item) => String(item[idField]) === String(selectedId));
+
 export const formatPersonName = (person) =>
   [person?.emri, person?.mbiemri].filter(Boolean).join(" ");
 

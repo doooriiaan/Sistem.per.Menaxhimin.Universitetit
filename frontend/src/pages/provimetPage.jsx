@@ -15,6 +15,7 @@ import {
   formatPersonName,
   getDefaultId,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import {
@@ -29,6 +30,7 @@ const emptyForm = {
   profesor_id: "",
   data_provimit: "",
   ora: "",
+  salla_id: "",
   salla: "",
   afati: EXAM_TERM_OPTIONS[0].value,
 };
@@ -37,6 +39,7 @@ function ProvimetPage() {
   const [provimet, setProvimet] = useState([]);
   const [lendet, setLendet] = useState([]);
   const [profesoret, setProfesoret] = useState([]);
+  const [sallat, setSallat] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,6 +49,7 @@ function ProvimetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingProvimi, setEditingProvimi] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const lendetLookup = buildLookup(lendet, "lende_id", formatCourseName);
@@ -87,6 +91,19 @@ function ProvimetPage() {
     "Te gjitha afatet"
   );
   const examTermOptions = withCurrentOption(EXAM_TERM_OPTIONS, form.afati);
+  const selectedLenda = getSelectedItem(lendet, "lende_id", form.lende_id);
+  const filteredProfesoret = selectedLenda
+    ? profesoret.filter(
+        (profesor) =>
+          String(profesor.profesor_id) === String(selectedLenda.profesor_id)
+      )
+    : [];
+  const availableSallat = sallat.filter(
+    (salla) =>
+      salla.statusi === "Aktive" ||
+      String(salla.salla_id) === String(form.salla_id) ||
+      salla.emri === form.salla
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -95,15 +112,17 @@ function ProvimetPage() {
   const fetchProvimet = async () => {
     try {
       setLoading(true);
-      const [provimetRes, lendetRes, profesoretRes] = await Promise.all([
+      const [provimetRes, lendetRes, profesoretRes, sallatRes] = await Promise.all([
         API.get("/provimet"),
         API.get("/lendet"),
         API.get("/profesoret"),
+        API.get("/sallat"),
       ]);
 
       setProvimet(provimetRes.data);
       setLendet(lendetRes.data);
       setProfesoret(profesoretRes.data);
+      setSallat(sallatRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -120,31 +139,65 @@ function ProvimetPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "lende_id") {
+      const nextLenda = getSelectedItem(lendet, "lende_id", normalizedValue);
+
+      setForm((prev) => ({
+        ...prev,
+        lende_id: normalizedValue,
+        profesor_id: nextLenda?.profesor_id || "",
+      }));
+      return;
+    }
+
+    if (name === "salla_id") {
+      const selectedSalla = getSelectedItem(sallat, "salla_id", normalizedValue);
+
+      setForm((prev) => ({
+        ...prev,
+        salla_id: normalizedValue,
+        salla: selectedSalla?.emri || "",
+      }));
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultLendaId = getDefaultId(lendet, "lende_id");
+    const defaultLenda = getSelectedItem(lendet, "lende_id", defaultLendaId);
+
     setEditingProvimi(null);
     setForm({
       ...emptyForm,
-      lende_id: getDefaultId(lendet, "lende_id"),
-      profesor_id: getDefaultId(profesoret, "profesor_id"),
+      lende_id: defaultLendaId,
+      profesor_id: defaultLenda?.profesor_id || "",
+      salla_id:
+        sallat.find((salla) => salla.statusi === "Aktive")?.salla_id || "",
+      salla: sallat.find((salla) => salla.statusi === "Aktive")?.emri || "",
     });
     setShowModal(true);
     setError("");
   };
 
   const openEditModal = (provimi) => {
+    const selectedSalla = provimi.salla_id
+      ? getSelectedItem(sallat, "salla_id", provimi.salla_id)
+      : sallat.find((salla) => salla.emri === provimi.salla);
+
     setEditingProvimi(provimi);
     setForm({
       lende_id: provimi.lende_id || 1,
       profesor_id: provimi.profesor_id || 1,
       data_provimit: formatDateInputValue(provimi.data_provimit),
       ora: provimi.ora || "",
+      salla_id: selectedSalla?.salla_id || "",
       salla: provimi.salla || "",
       afati: provimi.afati || "",
     });
@@ -168,6 +221,7 @@ function ProvimetPage() {
     }
 
     try {
+      setSaving(true);
       if (editingProvimi) {
         await API.put(`/provimet/${editingProvimi.provimi_id}`, form);
       } else {
@@ -186,11 +240,18 @@ function ProvimetPage() {
             : "Gabim gjate shtimit te provimit."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirmDelete("kete provim")) {
+    const provimi = provimet.find((item) => item.provimi_id === id);
+    const provimiLabel = provimi
+      ? `provimin "${getLabelById(lendetLookup, provimi.lende_id, "Lenda")}"`
+      : "kete provim";
+
+    if (!confirmDelete(provimiLabel)) {
       return;
     }
 
@@ -340,40 +401,62 @@ function ProvimetPage() {
             >
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Lenda</p>
-                <select
-                  name="lende_id"
-                  value={form.lende_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh lenden</option>
-                  {lendet.map((lenda) => (
-                    <option key={lenda.lende_id} value={lenda.lende_id}>
-                      {formatCourseName(lenda)}
-                    </option>
-                  ))}
-                </select>
+                {editingProvimi ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(lendetLookup, form.lende_id, "Lenda")}
+                  </div>
+                ) : (
+                  <select
+                    name="lende_id"
+                    value={form.lende_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh lenden</option>
+                    {lendet.map((lenda) => (
+                      <option key={lenda.lende_id} value={lenda.lende_id}>
+                        {formatCourseName(lenda)}
+                      </option>
+                    ))}
+                    {lendet.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka lende te regjistruara
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Profesori
                 </p>
-                <select
-                  name="profesor_id"
-                  value={form.profesor_id}
-                  onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2"
-                  required
-                >
-                  <option value="">Zgjidh profesorin</option>
-                  {profesoret.map((profesor) => (
-                    <option key={profesor.profesor_id} value={profesor.profesor_id}>
-                      {formatPersonName(profesor)}
-                    </option>
-                  ))}
-                </select>
+                {editingProvimi ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {getLabelById(profesoretLookup, form.profesor_id, "Profesori")}
+                  </div>
+                ) : (
+                  <select
+                    name="profesor_id"
+                    value={form.profesor_id}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2"
+                    required
+                  >
+                    <option value="">Zgjidh profesorin</option>
+                    {filteredProfesoret.map((profesor) => (
+                      <option key={profesor.profesor_id} value={profesor.profesor_id}>
+                        {formatPersonName(profesor)}
+                      </option>
+                    ))}
+                    {filteredProfesoret.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka profesor per lenden e zgjedhur
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -404,13 +487,25 @@ function ProvimetPage() {
 
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Salla</p>
-                <input
-                  name="salla"
-                  value={form.salla}
+                <select
+                  name="salla_id"
+                  value={form.salla_id}
                   onChange={handleChange}
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                   required
-                />
+                >
+                  <option value="">Zgjidh sallen</option>
+                  {availableSallat.map((salla) => (
+                    <option key={salla.salla_id} value={salla.salla_id}>
+                      {salla.emri} | {salla.kapaciteti} vende
+                    </option>
+                  ))}
+                  {availableSallat.length === 0 && (
+                    <option value="" disabled>
+                      Nuk ka salla aktive
+                    </option>
+                  )}
+                </select>
               </div>
 
               <div>
@@ -440,9 +535,10 @@ function ProvimetPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  Ruaj
+                  {saving ? "Duke ruajtur..." : "Ruaj"}
                 </button>
               </div>
             </form>

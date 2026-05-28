@@ -17,6 +17,7 @@ import {
   formatPersonName,
   getDefaultId,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import {
@@ -41,6 +42,7 @@ function LendetPage() {
   const [lendet, setLendet] = useState([]);
   const [drejtimet, setDrejtimet] = useState([]);
   const [profesoret, setProfesoret] = useState([]);
+  const [departamentet, setDepartamentet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +52,7 @@ function LendetPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingLenda, setEditingLenda] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
   const drejtimetLookup = buildLookup(
@@ -91,6 +94,26 @@ function LendetPage() {
     "Te gjitha llojet"
   );
   const courseTypeOptions = withCurrentOption(COURSE_TYPE_OPTIONS, form.lloji);
+  const selectedDrejtimi = getSelectedItem(
+    drejtimet,
+    "drejtim_id",
+    form.drejtimi_id
+  );
+  const selectedFacultyDepartments = departamentet.filter(
+    (departamenti) =>
+      selectedDrejtimi &&
+      String(departamenti.fakulteti_id) === String(selectedDrejtimi.fakulteti_id)
+  );
+  const selectedDepartmentIds = new Set(
+    selectedFacultyDepartments.map((departamenti) =>
+      String(departamenti.departament_id)
+    )
+  );
+  const filteredProfesoret = selectedDrejtimi
+    ? profesoret.filter((profesor) =>
+        selectedDepartmentIds.has(String(profesor.departamenti_id))
+      )
+    : [];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -99,15 +122,18 @@ function LendetPage() {
   const fetchLendet = async () => {
     try {
       setLoading(true);
-      const [lendetRes, drejtimetRes, profesoretRes] = await Promise.all([
+      const [lendetRes, drejtimetRes, profesoretRes, departamentetRes] =
+        await Promise.all([
         API.get("/lendet"),
         API.get("/drejtimet"),
         API.get("/profesoret"),
+        API.get("/departamentet"),
       ]);
 
       setLendet(lendetRes.data);
       setDrejtimet(drejtimetRes.data);
       setProfesoret(profesoretRes.data);
+      setDepartamentet(departamentetRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -124,18 +150,58 @@ function LendetPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "drejtimi_id") {
+      const nextDrejtimi = getSelectedItem(drejtimet, "drejtim_id", normalizedValue);
+      const nextDepartmentIds = new Set(
+        departamentet
+          .filter(
+            (departamenti) =>
+              nextDrejtimi &&
+              String(departamenti.fakulteti_id) === String(nextDrejtimi.fakulteti_id)
+          )
+          .map((departamenti) => String(departamenti.departament_id))
+      );
+      const nextProfesoret = profesoret.filter((profesor) =>
+        nextDepartmentIds.has(String(profesor.departamenti_id))
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        drejtimi_id: normalizedValue,
+        profesor_id: getDefaultId(nextProfesoret, "profesor_id"),
+      }));
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultDrejtimiId = getDefaultId(drejtimet, "drejtim_id");
+    const defaultDrejtimi = getSelectedItem(drejtimet, "drejtim_id", defaultDrejtimiId);
+    const defaultDepartmentIds = new Set(
+      departamentet
+        .filter(
+          (departamenti) =>
+            defaultDrejtimi &&
+            String(departamenti.fakulteti_id) === String(defaultDrejtimi.fakulteti_id)
+        )
+        .map((departamenti) => String(departamenti.departament_id))
+    );
+    const defaultProfesoret = profesoret.filter((profesor) =>
+      defaultDepartmentIds.has(String(profesor.departamenti_id))
+    );
+
     setEditingLenda(null);
     setForm({
       ...emptyForm,
-      drejtimi_id: getDefaultId(drejtimet, "drejtim_id"),
-      profesor_id: getDefaultId(profesoret, "profesor_id"),
+      drejtimi_id: defaultDrejtimiId,
+      profesor_id: getDefaultId(defaultProfesoret, "profesor_id"),
     });
     setShowModal(true);
     setError("");
@@ -173,6 +239,7 @@ function LendetPage() {
     }
 
     try {
+      setSaving(true);
       if (editingLenda) {
         await API.put(`/lendet/${editingLenda.lende_id}`, form);
       } else {
@@ -191,11 +258,15 @@ function LendetPage() {
             : "Gabim gjate shtimit te lendes."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirmDelete("kete lende")) {
+    const lenda = lendet.find((item) => item.lende_id === id);
+
+    if (!confirmDelete(lenda ? `lenden "${formatCourseName(lenda)}"` : "kete lende")) {
       return;
     }
 
@@ -446,11 +517,16 @@ function LendetPage() {
                   required
                 >
                   <option value="">Zgjidh profesorin</option>
-                  {profesoret.map((profesor) => (
+                  {filteredProfesoret.map((profesor) => (
                     <option key={profesor.profesor_id} value={profesor.profesor_id}>
                       {formatPersonName(profesor)}
                     </option>
                   ))}
+                  {filteredProfesoret.length === 0 && (
+                    <option value="" disabled>
+                      Nuk ka profesor per kete drejtim
+                    </option>
+                  )}
                 </select>
               </div>
 
@@ -495,9 +571,10 @@ function LendetPage() {
 
                 <button
                   type="submit"
+                  disabled={saving}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white"
                 >
-                  Ruaj
+                  {saving ? "Duke ruajtur..." : "Ruaj"}
                 </button>
               </div>
             </form>

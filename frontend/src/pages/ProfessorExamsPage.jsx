@@ -7,6 +7,7 @@ import {
   EDIT_ACTION_BUTTON_CLASS,
 } from "../utils/buttonStyles";
 import { formatDateLabel, formatTimeLabel } from "../utils/display";
+import { getSelectedItem } from "../utils/relations";
 import {
   getApiErrorMessage,
   validateProfessorExamForm,
@@ -16,6 +17,7 @@ const emptyForm = {
   lende_id: "",
   data_provimit: "",
   ora: "",
+  salla_id: "",
   salla: "",
   afati: "",
 };
@@ -25,11 +27,13 @@ function ProfessorExamsPage() {
   const courseFilter = searchParams.get("course");
   const [courses, setCourses] = useState([]);
   const [exams, setExams] = useState([]);
+  const [sallat, setSallat] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
   const filteredExams = useMemo(() => {
     if (!courseFilter) {
@@ -39,16 +43,25 @@ function ProfessorExamsPage() {
     return exams.filter((exam) => String(exam.lende_id) === String(courseFilter));
   }, [courseFilter, exams]);
 
+  const availableSallat = sallat.filter(
+    (salla) =>
+      salla.statusi === "Aktive" ||
+      String(salla.salla_id) === String(form.salla_id) ||
+      salla.emri === form.salla
+  );
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [coursesRes, examsRes] = await Promise.all([
+      const [coursesRes, examsRes, sallatRes] = await Promise.all([
         API.get("/profesor/lendet"),
         API.get("/profesor/provimet"),
+        API.get("/sallat"),
       ]);
 
       setCourses(coursesRes.data);
       setExams(examsRes.data);
+      setSallat(sallatRes.data);
       setError("");
     } catch (err) {
       setError(getApiErrorMessage(err, "Gabim gjate marrjes se provimeve."));
@@ -64,6 +77,18 @@ function ProfessorExamsPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setError("");
+
+    if (name === "salla_id") {
+      const selectedSalla = getSelectedItem(sallat, "salla_id", value);
+
+      setForm((prev) => ({
+        ...prev,
+        salla_id: value,
+        salla: selectedSalla?.emri || "",
+      }));
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -75,16 +100,24 @@ function ProfessorExamsPage() {
     setForm({
       ...emptyForm,
       lende_id: courseFilter || courses[0]?.lende_id || "",
+      salla_id:
+        sallat.find((salla) => salla.statusi === "Aktive")?.salla_id || "",
+      salla: sallat.find((salla) => salla.statusi === "Aktive")?.emri || "",
     });
     setShowModal(true);
   };
 
   const openEditModal = (exam) => {
+    const selectedSalla = exam.salla_id
+      ? getSelectedItem(sallat, "salla_id", exam.salla_id)
+      : sallat.find((salla) => salla.emri === exam.salla);
+
     setEditingExam(exam);
     setForm({
       lende_id: exam.lende_id,
       data_provimit: String(exam.data_provimit).slice(0, 10),
       ora: formatTimeLabel(exam.ora),
+      salla_id: selectedSalla?.salla_id || "",
       salla: exam.salla,
       afati: exam.afati,
     });
@@ -107,6 +140,7 @@ function ProfessorExamsPage() {
     }
 
     try {
+      setSaving(true);
       if (editingExam) {
         await API.put(`/profesor/provimet/${editingExam.provimi_id}`, form);
       } else {
@@ -124,11 +158,16 @@ function ProfessorExamsPage() {
             : "Gabim gjate shtimit te provimit."
         )
       );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (examId) => {
-    if (!confirmDelete("kete provim")) {
+    const exam = exams.find((item) => item.provimi_id === examId);
+    const examLabel = exam ? `provimin "${exam.lenda} (${exam.kodi})"` : "kete provim";
+
+    if (!confirmDelete(examLabel)) {
       return;
     }
 
@@ -249,19 +288,30 @@ function ProfessorExamsPage() {
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   Lenda
                 </label>
-                <select
-                  name="lende_id"
-                  value={form.lende_id}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                >
-                  <option value="">Zgjidh lenden</option>
-                  {courses.map((course) => (
-                    <option key={course.lende_id} value={course.lende_id}>
-                      {course.emri} ({course.kodi})
-                    </option>
-                  ))}
-                </select>
+                {editingExam ? (
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                    {editingExam.lenda} ({editingExam.kodi})
+                  </div>
+                ) : (
+                  <select
+                    name="lende_id"
+                    value={form.lende_id}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2"
+                  >
+                    <option value="">Zgjidh lenden</option>
+                    {courses.map((course) => (
+                      <option key={course.lende_id} value={course.lende_id}>
+                        {course.emri} ({course.kodi})
+                      </option>
+                    ))}
+                    {courses.length === 0 && (
+                      <option value="" disabled>
+                        Nuk ka lende te lidhura
+                      </option>
+                    )}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -294,12 +344,24 @@ function ProfessorExamsPage() {
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   Salla
                 </label>
-                <input
-                  name="salla"
-                  value={form.salla}
+                <select
+                  name="salla_id"
+                  value={form.salla_id}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2"
-                />
+                >
+                  <option value="">Zgjidh sallen</option>
+                  {availableSallat.map((salla) => (
+                    <option key={salla.salla_id} value={salla.salla_id}>
+                      {salla.emri} | {salla.kapaciteti} vende
+                    </option>
+                  ))}
+                  {availableSallat.length === 0 && (
+                    <option value="" disabled>
+                      Nuk ka salla aktive
+                    </option>
+                  )}
+                </select>
               </div>
 
               <div className="md:col-span-2">
@@ -324,9 +386,10 @@ function ProfessorExamsPage() {
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="rounded-xl bg-slate-900 px-4 py-2 text-white"
                 >
-                  {editingExam ? "Ruaj" : "Shto"}
+                  {saving ? "Duke ruajtur..." : editingExam ? "Ruaj" : "Shto"}
                 </button>
               </div>
             </form>

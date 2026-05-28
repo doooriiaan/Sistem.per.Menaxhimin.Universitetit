@@ -12,6 +12,7 @@ import {
   formatPersonName,
   getDefaultId,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import {
@@ -92,6 +93,26 @@ function DepartamentetPage() {
     (fakulteti) => fakulteti.emri,
     "Te gjitha fakultetet"
   );
+  const selectedFakulteti = getSelectedItem(
+    fakultetet,
+    "fakultet_id",
+    form.fakulteti_id
+  );
+  const selectedDepartmentIds = new Set(
+    departamentet
+      .filter(
+        (departamenti) =>
+          selectedFakulteti &&
+          String(departamenti.fakulteti_id) ===
+            String(selectedFakulteti.fakultet_id)
+      )
+      .map((departamenti) => String(departamenti.departament_id))
+  );
+  const filteredProfesoret = selectedFakulteti
+    ? profesoret.filter((profesor) =>
+        selectedDepartmentIds.has(String(profesor.departamenti_id))
+      )
+    : [];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -126,18 +147,54 @@ function DepartamentetPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setError("");
+    const normalizedValue = normalizeFormValue(name, value, type);
+
+    if (name === "fakulteti_id") {
+      const nextDepartmentIds = new Set(
+        departamentet
+          .filter(
+            (departamenti) =>
+              String(departamenti.fakulteti_id) === String(normalizedValue)
+          )
+          .map((departamenti) => String(departamenti.departament_id))
+      );
+      const nextProfesoret = profesoret.filter((profesor) =>
+        nextDepartmentIds.has(String(profesor.departamenti_id))
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        fakulteti_id: normalizedValue,
+        shefi_id: getDefaultId(nextProfesoret, "profesor_id"),
+      }));
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
-      [name]: normalizeFormValue(name, value, type),
+      [name]: normalizedValue,
     }));
   };
 
   const openAddModal = () => {
+    const defaultFakultetiId = getDefaultId(fakultetet, "fakultet_id");
+    const defaultDepartmentIds = new Set(
+      departamentet
+        .filter(
+          (departamenti) =>
+            String(departamenti.fakulteti_id) === String(defaultFakultetiId)
+        )
+        .map((departamenti) => String(departamenti.departament_id))
+    );
+    const defaultProfesoret = profesoret.filter((profesor) =>
+      defaultDepartmentIds.has(String(profesor.departamenti_id))
+    );
+
     setEditingDepartamenti(null);
     setForm({
       ...emptyForm,
-      fakulteti_id: getDefaultId(fakultetet, "fakultet_id"),
+      fakulteti_id: defaultFakultetiId,
+      shefi_id: getDefaultId(defaultProfesoret, "profesor_id"),
     });
     setShowModal(true);
     setError("");
@@ -401,7 +458,7 @@ function DepartamentetPage() {
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                 >
                   <option value="">Pa shef</option>
-                  {profesoret.map((profesor) => (
+                  {filteredProfesoret.map((profesor) => (
                     <option key={profesor.profesor_id} value={profesor.profesor_id}>
                       {formatPersonName(profesor)}
                     </option>

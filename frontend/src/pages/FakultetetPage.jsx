@@ -11,6 +11,7 @@ import {
   buildLookup,
   formatPersonName,
   getLabelById,
+  getSelectedItem,
   normalizeFormValue,
 } from "../utils/relations";
 import { matchesSearchTerm, paginateItems } from "../utils/table";
@@ -30,6 +31,7 @@ const emptyForm = {
 function FakultetetPage() {
   const [fakultetet, setFakultetet] = useState([]);
   const [profesoret, setProfesoret] = useState([]);
+  const [departamentet, setDepartamentet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,6 +77,24 @@ function FakultetetPage() {
     currentPage,
     pageSize
   );
+  const selectedFakulteti = editingFakulteti
+    ? getSelectedItem(fakultetet, "fakultet_id", editingFakulteti.fakultet_id)
+    : null;
+  const selectedDepartmentIds = new Set(
+    departamentet
+      .filter(
+        (departamenti) =>
+          selectedFakulteti &&
+          String(departamenti.fakulteti_id) ===
+            String(selectedFakulteti.fakultet_id)
+      )
+      .map((departamenti) => String(departamenti.departament_id))
+  );
+  const filteredProfesoret = selectedFakulteti
+    ? profesoret.filter((profesor) =>
+        selectedDepartmentIds.has(String(profesor.departamenti_id))
+      )
+    : [];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -83,13 +103,15 @@ function FakultetetPage() {
   const fetchFakultetet = async () => {
     try {
       setLoading(true);
-      const [fakultetetRes, profesoretRes] = await Promise.all([
+      const [fakultetetRes, profesoretRes, departamentetRes] = await Promise.all([
         API.get("/fakultetet"),
         API.get("/profesoret"),
+        API.get("/departamentet"),
       ]);
 
       setFakultetet(fakultetetRes.data);
       setProfesoret(profesoretRes.data);
+      setDepartamentet(departamentetRes.data);
       setError("");
     } catch (err) {
       console.error(err);
@@ -115,7 +137,7 @@ function FakultetetPage() {
 
   const openAddModal = () => {
     setEditingFakulteti(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, dekani_id: "" });
     setShowModal(true);
     setError("");
   };
@@ -349,7 +371,7 @@ function FakultetetPage() {
                   className="w-full border border-slate-300 rounded-xl px-3 py-2"
                 >
                   <option value="">Pa dekan</option>
-                  {profesoret.map((profesor) => (
+                  {filteredProfesoret.map((profesor) => (
                     <option key={profesor.profesor_id} value={profesor.profesor_id}>
                       {formatPersonName(profesor)}
                     </option>
