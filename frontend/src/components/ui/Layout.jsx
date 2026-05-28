@@ -4,7 +4,7 @@ import NavigationIcon from "../NavigationIcon";
 function SurfaceCard({ children, className = "" }) {
   return (
     <section
-      className={`rounded-[30px] border border-slate-200 bg-white/96 p-6 shadow-[0_22px_52px_rgba(15,23,42,0.07)] ${className}`}
+      className={`rounded-[24px] border border-slate-200 bg-white/96 p-4 shadow-[0_22px_52px_rgba(15,23,42,0.07)] sm:rounded-[30px] sm:p-6 ${className}`}
     >
       {children}
     </section>
@@ -19,7 +19,7 @@ function PageHeader({
   title,
 }) {
   return (
-    <div className="rounded-[32px] border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.94),rgba(244,247,251,0.88))] p-7 shadow-[0_26px_70px_rgba(15,23,42,0.09)]">
+    <div className="rounded-[24px] border border-white/70 bg-[linear-gradient(145deg,rgba(255,255,255,0.94),rgba(244,247,251,0.88))] p-4 shadow-[0_26px_70px_rgba(15,23,42,0.09)] sm:rounded-[32px] sm:p-7">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         <div className="max-w-3xl">
           {eyebrow ? (
@@ -28,7 +28,7 @@ function PageHeader({
             </p>
           ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-slate-950 sm:text-[2.15rem]">
+            <h1 className="text-2xl font-extrabold text-slate-950 sm:text-[2.15rem]">
               {title}
             </h1>
             {badge}
@@ -65,7 +65,7 @@ function StatCard({
 
   return (
     <div
-      className={`rounded-[28px] border border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ${toneClass}`}
+      className={`rounded-[24px] border border-slate-200/80 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:rounded-[28px] sm:p-5 ${toneClass}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>

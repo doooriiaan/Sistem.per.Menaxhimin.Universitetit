@@ -7,6 +7,7 @@ const titles = {
   "/": "Dashboard",
   "/njoftime": "Njoftime",
   "/raporte": "Analitika",
+  "/perdoruesit": "Perdoruesit",
   "/ndihme": "Ndihme",
   "/studentet": "Studentet",
   "/profesoret": "Profesoret",
@@ -60,13 +61,13 @@ function Topbar({ onMenuToggle = () => {} }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/82 px-4 py-4 backdrop-blur-xl sm:px-5 lg:px-8 2xl:px-10">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/82 px-3 py-3 backdrop-blur-xl sm:px-5 sm:py-4 lg:px-8 2xl:px-10">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center">
           <button
             type="button"
             onClick={onMenuToggle}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm lg:hidden"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm sm:h-11 sm:w-11 lg:hidden"
             aria-label="Hape navigimin"
           >
             <span className="space-y-1.5">
@@ -77,27 +78,27 @@ function Topbar({ onMenuToggle = () => {} }) {
           </button>
 
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.32em] text-slate-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 sm:text-[11px] sm:tracking-[0.32em]">
               University Workspace
             </p>
-            <h2 className="mt-2 truncate text-2xl font-extrabold text-slate-950">
+            <h2 className="mt-1 truncate text-xl font-extrabold text-slate-950 sm:mt-2 sm:text-2xl">
               {pageTitle}
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="hidden text-sm text-slate-500 sm:block">
               Sistem universitar me module akademike dhe administrative
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-1.5 rounded-[22px]  bg-white/90 p-1.5  gap-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:justify-end sm:gap-3">
+          <div className="flex items-center gap-1.5 rounded-[18px] bg-white/90 p-1.5 sm:rounded-[22px]">
             {utilityItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 aria-label={item.label}
                 title={item.label}
-                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200 ${
+                className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition-all duration-200 sm:h-11 sm:w-11 ${
                   isPathActive(location.pathname, item.path)
                     ? "border-cyan-200 bg-cyan-50 text-cyan-700 shadow-[0_0_8px_rgba(34,211,238,0.4)]"
                     : "border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-800"
@@ -127,7 +128,7 @@ function Topbar({ onMenuToggle = () => {} }) {
           <button
             type="button"
             onClick={handleLogout}
-            className="rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-white transition hover:bg-slate-800"
+            className="rounded-2xl border border-slate-200 bg-slate-950 px-3 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-slate-800 sm:px-4 sm:tracking-[0.22em]"
           >
             Dil
           </button>

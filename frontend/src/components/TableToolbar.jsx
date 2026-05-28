@@ -14,10 +14,10 @@ function TableToolbar({
   const hasFilter = filterOptions.length > 1;
 
   return (
-    <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+    <div className="mb-5 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
       <div
-        className={`grid gap-3 ${
-          hasFilter ? "md:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]" : ""
+        className={`grid min-w-0 gap-3 ${
+          hasFilter ? "sm:grid-cols-[minmax(0,2fr)_minmax(180px,1fr)] md:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]" : ""
         }`}
       >
         <div>
@@ -53,7 +53,7 @@ function TableToolbar({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 sm:justify-start">
         <span>{totalItems} rezultate</span>
         <div className="flex items-center gap-2">
           <label

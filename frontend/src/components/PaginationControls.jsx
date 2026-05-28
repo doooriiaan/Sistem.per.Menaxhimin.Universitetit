@@ -16,7 +16,7 @@ function PaginationControls({
         Po shfaqen {startItem}-{endItem} nga {totalItems} rezultate
       </p>
 
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
         <button
           type="button"
           onClick={() => onPageChange(currentPage - 1)}
