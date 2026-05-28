@@ -9,6 +9,7 @@ const roleConnectionMap = {
   admin: [
     { to: "/", label: "Overview", icon: "grid" },
     { to: "/raporte", label: "Analitika", icon: "chart" },
+    { to: "/perdoruesit", label: "Perdoruesit", icon: "shield" },
     { to: "/studentet", label: "Studentet", icon: "users" },
     { to: "/lendet", label: "Lendet", icon: "book" },
     { to: "/sherbimet", label: "Sherbimet", icon: "file" },
@@ -37,6 +38,7 @@ const navigationByRole = {
       icon: "grid",
       items: [
         { path: "/", label: "Dashboard" },
+        { path: "/perdoruesit", label: "Perdoruesit" },
         { path: "/studentet", label: "Studentet" },
         { path: "/regjistrimet", label: "Regjistrimet" },
         { path: "/sherbimet", label: "Sherbimet" },
@@ -53,6 +55,7 @@ const navigationByRole = {
         { path: "/lendet", label: "Lendet" },
         { path: "/notat", label: "Notat" },
         { path: "/oraret", label: "Oraret" },
+        { path: "/sallat", label: "Sallat" },
       ],
     },
     {

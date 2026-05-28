@@ -135,12 +135,26 @@ export const validatePasswordChangeForm = (form) =>
       : null
   );
 
+export const validateUserEmailForm = (form) =>
+  runValidators(validEmail(form.email));
+
+export const validateUserPasswordResetForm = (form) =>
+  runValidators(
+    requiredText(form.password, "Fjalekalimi i ri"),
+    form.password && form.password.length >= 8
+      ? null
+      : "Fjalekalimi duhet te kete te pakten 8 karaktere.",
+    form.password === form.confirmPassword
+      ? null
+      : "Fjalekalimet nuk perputhen."
+  );
+
 export const validateProfessorExamForm = (form) =>
   runValidators(
     positiveInteger(form.lende_id, "Lenda"),
     validDate(form.data_provimit, "Data e provimit"),
     validTime(form.ora, "Ora e provimit"),
-    requiredText(form.salla, "Salla"),
+    form.salla_id ? positiveInteger(form.salla_id, "Salla") : requiredText(form.salla, "Salla"),
     requiredText(form.afati, "Afati")
   );
 
@@ -237,6 +251,16 @@ export const validateGenerationForm = (form) =>
     Number(form.viti_diplomimit) >= Number(form.viti_regjistrimit)
       ? null
       : "Viti i diplomimit duhet te jete pas vitit te regjistrimit.",
+    requiredText(form.statusi, "Statusi"),
+    requiredText(form.pershkrimi, "Pershkrimi")
+  );
+
+export const validateSallaForm = (form) =>
+  runValidators(
+    requiredText(form.emri, "Emri i salles"),
+    positiveInteger(form.kapaciteti, "Kapaciteti"),
+    requiredText(form.lokacioni, "Lokacioni"),
+    requiredText(form.tipi, "Tipi i salles"),
     requiredText(form.statusi, "Statusi"),
     requiredText(form.pershkrimi, "Pershkrimi")
   );
@@ -385,7 +409,7 @@ export const validateProvimiForm = (form) =>
     positiveInteger(form.profesor_id, "Profesori"),
     validDate(form.data_provimit, "Data e provimit"),
     validTime(form.ora, "Ora e provimit"),
-    requiredText(form.salla, "Salla"),
+    form.salla_id ? positiveInteger(form.salla_id, "Salla") : requiredText(form.salla, "Salla"),
     requiredText(form.afati, "Afati")
   );
 
@@ -405,5 +429,5 @@ export const validateOrariForm = (form) =>
     validTime(form.ora_fillimit, "Ora e fillimit"),
     validTime(form.ora_mbarimit, "Ora e mbarimit"),
     timeOrder(form.ora_fillimit, form.ora_mbarimit),
-    requiredText(form.salla, "Salla")
+    form.salla_id ? positiveInteger(form.salla_id, "Salla") : requiredText(form.salla, "Salla")
   );

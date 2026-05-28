@@ -15,6 +15,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
 const StudentsPage = lazy(() => import("./pages/studentsPage"));
 const ProfesoretPage = lazy(() => import("./pages/profesoretPage"));
 const LendetPage = lazy(() => import("./pages/lendetPage"));
@@ -31,6 +32,7 @@ const ErasmusPage = lazy(() => import("./pages/ErasmusPage"));
 const ProvimetPage = lazy(() => import("./pages/provimetPage"));
 const NotatPage = lazy(() => import("./pages/notatPage"));
 const OraretPage = lazy(() => import("./pages/oraretPage"));
+const SallatPage = lazy(() => import("./pages/sallatPage"));
 const ProfessorCoursesPage = lazy(() => import("./pages/ProfessorCoursesPage"));
 const ProfessorExamsPage = lazy(() => import("./pages/ProfessorExamsPage"));
 const ProfessorGradesPage = lazy(() => import("./pages/ProfessorGradesPage"));
@@ -88,13 +90,13 @@ function AppLayout() {
       />
       <FloatingBackButton />
 
-      <div className="flex-1 px-3 py-3 sm:px-4 sm:py-4 lg:ml-[18.5rem] lg:px-6 lg:py-6">
-        <div className="app-chrome min-h-[calc(100vh-1.5rem)] overflow-hidden rounded-[28px] sm:min-h-[calc(100vh-2rem)] sm:rounded-[30px] lg:min-h-[calc(100vh-3rem)] lg:rounded-[34px]">
+      <div className="min-w-0 flex-1 px-2 py-2 sm:px-4 sm:py-4 lg:ml-[18.5rem] lg:px-6 lg:py-6">
+        <div className="app-chrome min-h-[calc(100vh-1rem)] overflow-hidden rounded-[22px] sm:min-h-[calc(100vh-2rem)] sm:rounded-[30px] lg:min-h-[calc(100vh-3rem)] lg:rounded-[34px]">
           <Topbar
             onMenuToggle={() => setIsMobileNavOpen((current) => !current)}
           />
 
-          <main className="page-stage p-4 sm:p-5 lg:p-8">
+          <main className="page-stage min-w-0 p-3 sm:p-5 lg:p-8">
             {backendStatus === "offline" && <BackendStatusBanner />}
             <Outlet />
           </main>
@@ -131,6 +133,7 @@ function App() {
 
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/studentet" element={<StudentsPage />} />
+              <Route path="/perdoruesit" element={<UsersPage />} />
               <Route path="/profesoret" element={<ProfesoretPage />} />
               <Route path="/gjeneratat" element={<GenerationsPage />} />
               <Route path="/lendet" element={<LendetPage />} />
@@ -146,6 +149,7 @@ function App() {
               <Route path="/provimet" element={<ProvimetPage />} />
               <Route path="/notat" element={<NotatPage />} />
               <Route path="/oraret" element={<OraretPage />} />
+              <Route path="/sallat" element={<SallatPage />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["profesor"]} />}>

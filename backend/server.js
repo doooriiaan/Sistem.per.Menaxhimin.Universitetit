@@ -21,10 +21,12 @@ const bursatRoutes = require("./routes/bursatRoutes");
 const praktikatRoutes = require("./routes/praktikatRoutes");
 const erasmusRoutes = require("./routes/erasmusRoutes");
 const oraretRoutes = require("./routes/oraretRoutes");
+const sallatRoutes = require("./routes/sallatRoutes");
 const njoftimetRoutes = require("./routes/njoftimetRoutes");
 const profesorPortalRoutes = require("./routes/profesorPortalRoutes");
 const studentPortalRoutes = require("./routes/studentPortalRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const usersRoutes = require("./routes/usersRoutes");
 const {
   authenticateToken,
   authorizeRoles,
@@ -146,6 +148,12 @@ app.use(
   authorizeRoles("admin"),
   erasmusRoutes
 );
+app.use(
+  "/api/sallat",
+  authenticateToken,
+  authorizeRoles("admin", "profesor"),
+  sallatRoutes
+);
 app.use("/api/oraret", authenticateToken, authorizeRoles("admin"), oraretRoutes);
 app.use(
   "/api/profesor",
@@ -164,6 +172,12 @@ app.use(
   authenticateToken,
   authorizeRoles("admin"),
   analyticsRoutes
+);
+app.use(
+  "/api/users",
+  authenticateToken,
+  authorizeRoles("admin"),
+  usersRoutes
 );
 app.use(notFoundHandler);
 app.use(errorHandler);
