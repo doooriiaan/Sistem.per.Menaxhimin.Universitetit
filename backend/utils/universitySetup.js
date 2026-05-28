@@ -82,6 +82,14 @@ const ensureIndex = async (tableName, indexName, columns) => {
   }
 };
 
+const ensureUniqueIndex = async (tableName, indexName, columns) => {
+  if (!(await hasIndex(tableName, indexName))) {
+    await connection.query(
+      `CREATE UNIQUE INDEX ${indexName} ON ${tableName} (${columns.join(", ")})`
+    );
+  }
+};
+
 const ensureForeignKey = async (tableName, constraintName, statement) => {
   if (!(await hasForeignKey(tableName, constraintName))) {
     await connection.query(`ALTER TABLE ${tableName} ADD CONSTRAINT ${statement}`);
@@ -218,6 +226,37 @@ const ensureRepeatCoursesTable = async () => {
         ON UPDATE CASCADE
     )
   `);
+};
+
+const ensureRoomsTable = async () => {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS sallat (
+      salla_id INT AUTO_INCREMENT PRIMARY KEY,
+      emri VARCHAR(80) NOT NULL,
+      kapaciteti INT NOT NULL,
+      lokacioni VARCHAR(120) NOT NULL,
+      tipi VARCHAR(60) NOT NULL,
+      statusi VARCHAR(40) NOT NULL DEFAULT 'Aktive',
+      pershkrimi TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_sallat_emri (emri)
+    )
+  `);
+
+  await addColumnIfMissing("provimet", "salla_id", "INT NULL AFTER ora");
+  await addColumnIfMissing("oraret", "salla_id", "INT NULL AFTER ora_mbarimit");
+  await ensureIndex("provimet", "idx_provimet_salla_id", ["salla_id"]);
+  await ensureIndex("oraret", "idx_oraret_salla_id", ["salla_id"]);
+  await ensureForeignKey(
+    "provimet",
+    "fk_provimet_sallat",
+    "fk_provimet_sallat FOREIGN KEY (salla_id) REFERENCES sallat(salla_id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
+  await ensureForeignKey(
+    "oraret",
+    "fk_oraret_sallat",
+    "fk_oraret_sallat FOREIGN KEY (salla_id) REFERENCES sallat(salla_id) ON DELETE SET NULL ON UPDATE CASCADE"
+  );
 };
 
 const ensureExamApplicationsTable = async () => {
@@ -563,6 +602,82 @@ const seedServices = async () => {
   );
 };
 
+const ensureAcademicUniqueIndexes = async () => {
+  await ensureUniqueIndex("notat", "uq_notat_student_provimi", [
+    "student_id",
+    "provimi_id",
+  ]);
+  await ensureUniqueIndex("regjistrimet", "uq_regjistrimet_student_lende_viti", [
+    "student_id",
+    "lende_id",
+    "viti_akademik",
+  ]);
+};
+
+const seedRooms = async () => {
+  const [[{ total }]] = await connection.query("SELECT COUNT(*) AS total FROM sallat");
+
+  const [existingRooms] = await connection.query(`
+    SELECT DISTINCT salla
+    FROM (
+      SELECT salla FROM provimet WHERE salla IS NOT NULL AND salla <> ''
+      UNION
+      SELECT salla FROM oraret WHERE salla IS NOT NULL AND salla <> ''
+    ) existing_sallat
+    ORDER BY salla
+  `);
+
+  const fallbackRooms = [
+    "Salla 1",
+    "Salla 2",
+    "Salla 3",
+    "Salla 4",
+    "Salla 5",
+    "Lab 5",
+  ];
+  const roomNames =
+    existingRooms.length > 0
+      ? existingRooms.map((row) => row.salla)
+      : total === 0
+        ? fallbackRooms
+        : [];
+  const rows = roomNames.map((name, index) => [
+    name,
+    name.toLowerCase().includes("lab") ? 30 : 60,
+    "Kampusi kryesor",
+    name.toLowerCase().includes("lab") ? "Laborator" : "Salle mesimi",
+    "Aktive",
+    `Salla ${name} e regjistruar per orare dhe provime.`,
+  ]);
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  await connection.query(
+    `
+      INSERT IGNORE INTO sallat
+        (emri, kapaciteti, lokacioni, tipi, statusi, pershkrimi)
+      VALUES ?
+    `,
+    [rows]
+  );
+
+  await connection.query(`
+    UPDATE provimet p
+    JOIN sallat s ON s.emri = p.salla
+    SET p.salla_id = s.salla_id
+    WHERE p.salla_id IS NULL
+  `);
+
+  await connection.query(`
+    UPDATE oraret o
+    JOIN sallat s ON s.emri = o.salla
+    SET o.salla_id = s.salla_id
+    WHERE o.salla_id IS NULL
+  `);
+};
+
 const seedScholarships = async () => {
   const [[{ total }]] = await connection.query(
     "SELECT COUNT(*) AS total FROM bursat"
@@ -717,7 +832,9 @@ const ensureUniversitySetup = async () => {
   await ensureRegistrationDocumentsTable();
   await ensureServicesTables();
   await ensureRepeatCoursesTable();
+  await ensureRoomsTable();
   await ensureExamApplicationsTable();
+  await ensureAcademicUniqueIndexes();
   await ensureScholarshipTables();
   await ensureInternshipsTables();
   await ensureErasmusTables();
@@ -725,6 +842,7 @@ const ensureUniversitySetup = async () => {
   await seedGenerations();
   await assignStudentsToGenerations();
   await seedServices();
+  await seedRooms();
   await seedScholarships();
   await seedInternships();
   await seedErasmusPrograms();

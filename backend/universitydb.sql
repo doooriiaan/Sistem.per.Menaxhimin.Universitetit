@@ -54,6 +54,18 @@ CREATE TABLE gjeneratat (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE sallat (
+    salla_id INT AUTO_INCREMENT PRIMARY KEY,
+    emri VARCHAR(80) NOT NULL,
+    kapaciteti INT NOT NULL,
+    lokacioni VARCHAR(120) NOT NULL,
+    tipi VARCHAR(60) NOT NULL,
+    statusi VARCHAR(40) NOT NULL DEFAULT 'Aktive',
+    pershkrimi TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_sallat_emri (emri)
+);
+
 CREATE TABLE profesoret (
     profesor_id INT AUTO_INCREMENT PRIMARY KEY,
     emri VARCHAR(100) NOT NULL,
@@ -118,12 +130,16 @@ CREATE TABLE provimet (
     profesor_id INT NULL,
     data_provimit DATE NOT NULL,
     ora TIME NOT NULL,
+    salla_id INT NULL,
     salla VARCHAR(50) NOT NULL,
     afati VARCHAR(50) NOT NULL,
     FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE,
     FOREIGN KEY (profesor_id) REFERENCES profesoret(profesor_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    FOREIGN KEY (salla_id) REFERENCES sallat(salla_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
 );
@@ -182,11 +198,15 @@ CREATE TABLE oraret (
     dita VARCHAR(20) NOT NULL,
     ora_fillimit TIME NOT NULL,
     ora_mbarimit TIME NOT NULL,
+    salla_id INT NULL,
     salla VARCHAR(50) NOT NULL,
     FOREIGN KEY (lende_id) REFERENCES lendet(lende_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE,
     FOREIGN KEY (profesor_id) REFERENCES profesoret(profesor_id)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    FOREIGN KEY (salla_id) REFERENCES sallat(salla_id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
 );
@@ -477,6 +497,30 @@ INSERT INTO gjeneratat (
     (3, 'Gjenerata 2023/2024', 2023, 2026, 'Aktive', 'Gjenerate aktive ne fazen e avancuar te studimeve.'),
     (4, 'Gjenerata 2024/2025', 2024, 2027, 'Aktive', 'Gjenerate aktive me studentet e viteve te mesme.'),
     (5, 'Gjenerata 2025/2026', 2025, 2028, 'Aktive', 'Gjenerate e re per pranimet aktuale dhe regjistrimet hyrse.');
+
+INSERT INTO sallat (
+    salla_id, emri, kapaciteti, lokacioni, tipi, statusi, pershkrimi
+) VALUES
+    (1, 'Salla 1', 60, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle per ligjerata dhe ushtrime te rregullta.'),
+    (2, 'Salla 2', 60, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle per provime dhe ligjerata.'),
+    (3, 'Salla 3', 60, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle standarde per mesim.'),
+    (4, 'Salla 4', 60, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle standarde per mesim.'),
+    (5, 'Salla 5', 60, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle standarde per mesim.'),
+    (6, 'Salla 6', 70, 'Kampusi kryesor', 'Salle mesimi', 'Aktive', 'Salle me kapacitet me te madh per provime.'),
+    (7, 'Salla E1', 55, 'Objekti ekonomik', 'Salle mesimi', 'Aktive', 'Salle per drejtimet ekonomike.'),
+    (8, 'Salla E2', 55, 'Objekti ekonomik', 'Salle mesimi', 'Aktive', 'Salle per drejtimet ekonomike.'),
+    (9, 'Salla E3', 55, 'Objekti ekonomik', 'Salle mesimi', 'Aktive', 'Salle per drejtimet ekonomike.'),
+    (10, 'Salla E4', 55, 'Objekti ekonomik', 'Salle mesimi', 'Aktive', 'Salle per drejtimet ekonomike.'),
+    (11, 'Salla E5', 55, 'Objekti ekonomik', 'Salle mesimi', 'Aktive', 'Salle per drejtimet ekonomike.'),
+    (12, 'Salla F1', 50, 'Objekti financiar', 'Salle mesimi', 'Aktive', 'Salle per financa dhe banka.'),
+    (13, 'Salla F2', 50, 'Objekti financiar', 'Salle mesimi', 'Aktive', 'Salle per financa dhe banka.'),
+    (14, 'Salla F3', 50, 'Objekti financiar', 'Salle mesimi', 'Aktive', 'Salle per financa dhe banka.'),
+    (15, 'Salla F4', 50, 'Objekti financiar', 'Salle mesimi', 'Aktive', 'Salle per financa dhe banka.'),
+    (16, 'Salla M1', 45, 'Objekti master', 'Salle mesimi', 'Aktive', 'Salle per studime master.'),
+    (17, 'Salla M2', 45, 'Objekti master', 'Salle mesimi', 'Aktive', 'Salle per studime master.'),
+    (18, 'Salla M3', 45, 'Objekti master', 'Salle mesimi', 'Aktive', 'Salle per studime master.'),
+    (19, 'Salla M4', 45, 'Objekti master', 'Salle mesimi', 'Aktive', 'Salle per studime master.'),
+    (20, 'Lab 5', 30, 'Laboratoret', 'Laborator', 'Aktive', 'Laborator kompjuterik per ushtrime praktike.');
 
 INSERT INTO profesoret (
     profesor_id, emri, mbiemri, titulli_akademik, departamenti_id, email, telefoni, specializimi, data_punesimit
@@ -1952,3 +1996,27 @@ LEFT JOIN oraret o
    AND o.dita = ess.dita
    AND o.ora_fillimit = ess.ora_fillimit
 WHERE o.orari_id IS NULL;
+
+INSERT IGNORE INTO sallat (emri, kapaciteti, lokacioni, tipi, statusi, pershkrimi)
+SELECT
+    existing_sallat.salla,
+    CASE WHEN LOWER(existing_sallat.salla) LIKE '%lab%' OR LOWER(existing_sallat.salla) LIKE '%laboratori%' THEN 30 ELSE 60 END,
+    'Kampusi kryesor',
+    CASE WHEN LOWER(existing_sallat.salla) LIKE '%lab%' OR LOWER(existing_sallat.salla) LIKE '%laboratori%' THEN 'Laborator' ELSE 'Salle mesimi' END,
+    'Aktive',
+    CONCAT('Salla ', existing_sallat.salla, ' e regjistruar per orare dhe provime.')
+FROM (
+    SELECT salla FROM provimet WHERE salla IS NOT NULL AND salla <> ''
+    UNION
+    SELECT salla FROM oraret WHERE salla IS NOT NULL AND salla <> ''
+) existing_sallat;
+
+UPDATE provimet p
+JOIN sallat s ON s.emri = p.salla
+SET p.salla_id = s.salla_id
+WHERE p.salla_id IS NULL;
+
+UPDATE oraret o
+JOIN sallat s ON s.emri = o.salla
+SET o.salla_id = s.salla_id
+WHERE o.salla_id IS NULL;

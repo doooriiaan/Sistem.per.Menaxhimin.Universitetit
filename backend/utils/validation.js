@@ -64,6 +64,10 @@ const getDuplicateEntryMessage = (err) => {
     return "Ky provim eshte paraqitur tashme nga studenti.";
   }
 
+  if (errorMessage.includes("uq_sallat_emri")) {
+    return "Kjo salle ekziston tashme.";
+  }
+
   if (
     errorMessage.includes("uq_notat_student_provimi") ||
     errorMessage.includes("student_id") && errorMessage.includes("provimi_id")
