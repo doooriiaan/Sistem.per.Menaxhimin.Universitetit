@@ -26,7 +26,6 @@ const getRefreshTokenBaseCookieOptions = () => ({
 const setRefreshTokenCookie = (res, refreshToken) => {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
     ...getRefreshTokenBaseCookieOptions(),
-    maxAge: REFRESH_TOKEN_TTL_MS,
   });
 };
 
