@@ -18,7 +18,7 @@ Platforme full-stack per menaxhimin e te dhenave universitare me tri role kryeso
 - CRUD per entitetet kryesore: `studentet`, `profesoret`, `lendet`, `drejtimet`, `fakultetet`, `departamentet`, `regjistrimet`, `provimet`, `notat`, `oraret`
 - Dashboard i dedikuar per secilin rol
 - Autentifikim me role dhe autorizim ne API
-- Refresh-token flow me rotacion sesioni dhe `logout`
+- Refresh-token flow brenda sesionit aktiv dhe `logout`
 - Ndryshim fjalekalimi me revokim te refresh token-eve
 - Lazy loading dhe code splitting per faqet e frontend-it
 - Kerkim, filtrim dhe paginim ne modulet kryesore administrative
@@ -108,7 +108,8 @@ Pas importit te `backend/universitydb.sql`, mund te perdoresh:
 ## Rrjedha e Autentikimit
 
 - Access token ruhet ne `sessionStorage`
-- Refresh token ruhet ne cookie `httpOnly`
+- Refresh token ruhet ne cookie `httpOnly` sesioni
+- Frontend nuk ben login automatik nga refresh cookie nese `sessionStorage` eshte bosh
 - Kur access token skadon, frontend ben `POST /api/auth/refresh`
 - Refresh token rrotullohet ne cdo rifreskim te sesionit
 - `POST /api/auth/logout` e revokon sesionin aktiv
