@@ -8,7 +8,11 @@ const router = express.Router();
 router.get("/profili", studentPortalController.getProfile);
 router.get("/profili/overview", studentPortalController.getProfileOverview);
 router.get("/notat", studentPortalController.getGrades);
+router.get("/semestrat", studentPortalController.getAvailableSemesters);
+router.get("/lendet-disponueshme", studentPortalController.getAvailableCourses);
 router.get("/regjistrimet", studentPortalController.getEnrollments);
+router.post("/regjistrimet", studentPortalController.registerCourse);
+router.delete("/regjistrimet/:id", studentPortalController.deleteEnrollment);
 router.get("/dokumentet", studentServicesController.getStudentBaseDocuments);
 router.post("/dokumentet", studentServicesController.uploadStudentBaseDocument);
 router.get(

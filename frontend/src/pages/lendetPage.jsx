@@ -14,6 +14,7 @@ import {
 } from "../utils/formOptions";
 import {
   buildLookup,
+  formatCourseName,
   formatPersonName,
   getDefaultId,
   getLabelById,

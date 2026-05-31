@@ -9,6 +9,62 @@ const {
 
 const connection = db.promise();
 
+const getCurrentAcademicYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const startYear = now.getMonth() >= 8 ? year : year - 1;
+
+  return `${startYear}/${startYear + 1}`;
+};
+
+const getCurrentSemesterForStudent = (studyYear) => {
+  const normalizedStudyYear = Math.max(1, Number(studyYear) || 1);
+  const month = new Date().getMonth();
+  const isWinterSemester = month >= 8 || month <= 0;
+
+  return normalizedStudyYear * 2 - (isWinterSemester ? 1 : 0);
+};
+
+const getEnrollmentSemester = (student, requestedSemester) => {
+  if (isPositiveInteger(requestedSemester)) {
+    return Number(requestedSemester);
+  }
+
+  return (
+    Number(student.active_semestri) ||
+    getCurrentSemesterForStudent(student.viti_studimit)
+  );
+};
+
+const getStudentForEnrollment = async (studentId) => {
+  const [rows] = await connection.query(
+    `
+      SELECT
+        s.student_id,
+        s.emri,
+        s.mbiemri,
+        s.drejtimi_id,
+        s.viti_studimit,
+        active_courses.semestri AS active_semestri
+      FROM studentet s
+      LEFT JOIN (
+        SELECT
+          r.student_id,
+          MAX(r.semestri) AS semestri
+        FROM regjistrimet r
+        WHERE r.student_id = ?
+          AND r.statusi = 'Aktiv'
+        GROUP BY r.student_id
+      ) active_courses ON active_courses.student_id = s.student_id
+      WHERE s.student_id = ?
+      LIMIT 1
+    `,
+    [studentId, studentId]
+  );
+
+  return rows[0] || null;
+};
+
 const getStudentProfile = async (studentId) => {
   const [profileRows] = await connection.query(
     `
@@ -131,6 +187,82 @@ const getStudentEnrollments = async (studentId) => {
   return rows;
 };
 
+const getAvailableSemestersForEnrollment = async (studentId) => {
+  const student = await getStudentForEnrollment(studentId);
+
+  if (!student) {
+    return null;
+  }
+
+  const currentSemester = getEnrollmentSemester(student);
+  const [rows] = await connection.query(
+    `
+      SELECT
+        l.semestri,
+        COUNT(DISTINCT l.lende_id) AS total_lende,
+        COUNT(DISTINCT registered.lende_id) AS total_regjistruar,
+        CASE WHEN l.semestri = ? THEN 1 ELSE 0 END AS is_current
+      FROM lendet l
+      LEFT JOIN regjistrimet registered
+        ON registered.lende_id = l.lende_id
+       AND registered.student_id = ?
+      WHERE l.drejtimi_id = ?
+      GROUP BY l.semestri
+      ORDER BY l.semestri ASC
+    `,
+    [currentSemester, studentId, student.drejtimi_id]
+  );
+
+  return rows;
+};
+
+const getAvailableCoursesForEnrollment = async (studentId, requestedSemester) => {
+  const student = await getStudentForEnrollment(studentId);
+
+  if (!student) {
+    return null;
+  }
+
+  const currentSemester = getEnrollmentSemester(student, requestedSemester);
+  const [rows] = await connection.query(
+    `
+      SELECT
+        l.lende_id,
+        l.emri AS lenda,
+        l.kodi,
+        l.kreditet,
+        l.semestri,
+        l.lloji,
+        l.pershkrimi,
+        r.regjistrimi_id,
+        r.statusi AS statusi_regjistrimit,
+        CASE WHEN r.regjistrimi_id IS NULL THEN 0 ELSE 1 END AS is_registered,
+        CASE
+          WHEN r.regjistrimi_id IS NULL THEN NULL
+          ELSE CONCAT(?, ' ', ?)
+        END AS studenti_regjistruar,
+        CONCAT(COALESCE(p.emri, ''), ' ', COALESCE(p.mbiemri, '')) AS profesori
+      FROM lendet l
+      LEFT JOIN profesoret p ON l.profesor_id = p.profesor_id
+      LEFT JOIN regjistrimet r
+        ON r.lende_id = l.lende_id
+       AND r.student_id = ?
+      WHERE l.drejtimi_id = ?
+        AND l.semestri = ?
+      ORDER BY l.emri ASC
+    `,
+    [
+      student.emri || "",
+      student.mbiemri || "",
+      studentId,
+      student.drejtimi_id,
+      currentSemester,
+    ]
+  );
+
+  return rows;
+};
+
 const getStudentExams = async (studentId) => {
   const [rows] = await connection.query(
     `
@@ -149,7 +281,9 @@ const getStudentExams = async (studentId) => {
         pp.paraqitur_at,
         n.nota_id,
         n.nota,
-        n.data_vendosjes
+        n.data_vendosjes,
+        course_grade.nota_id AS course_nota_id,
+        course_grade.nota AS course_nota
       FROM regjistrimet r
       JOIN provimet p ON r.lende_id = p.lende_id
       JOIN lendet l ON p.lende_id = l.lende_id
@@ -160,6 +294,18 @@ const getStudentExams = async (studentId) => {
       LEFT JOIN notat n
         ON n.provimi_id = p.provimi_id
        AND n.student_id = r.student_id
+      LEFT JOIN (
+        SELECT
+          p2.lende_id,
+          n2.student_id,
+          MAX(n2.nota_id) AS nota_id,
+          MAX(n2.nota) AS nota
+        FROM notat n2
+        JOIN provimet p2 ON n2.provimi_id = p2.provimi_id
+        GROUP BY p2.lende_id, n2.student_id
+      ) course_grade
+        ON course_grade.lende_id = l.lende_id
+       AND course_grade.student_id = r.student_id
       WHERE r.student_id = ?
       ORDER BY
         CASE WHEN p.data_provimit >= CURDATE() THEN 0 ELSE 1 END,
@@ -269,6 +415,13 @@ const getAccessibleExamForStudent = async (studentId, examId) => {
         p.ora,
         p.afati,
         l.emri AS lenda,
+        (
+          SELECT COUNT(*)
+          FROM notat n
+          JOIN provimet graded_exam ON n.provimi_id = graded_exam.provimi_id
+          WHERE n.student_id = ?
+            AND graded_exam.lende_id = p.lende_id
+        ) AS total_course_grades,
         CASE WHEN p.data_provimit < CURDATE() THEN 1 ELSE 0 END AS is_past
       FROM provimet p
       JOIN lendet l ON p.lende_id = l.lende_id
@@ -278,7 +431,7 @@ const getAccessibleExamForStudent = async (studentId, examId) => {
       WHERE p.provimi_id = ?
       LIMIT 1
     `,
-    [studentId, examId]
+    [studentId, studentId, examId]
   );
 
   return rows[0] || null;
@@ -393,6 +546,191 @@ const getEnrollments = async (req, res) => {
   }
 };
 
+const getAvailableCourses = async (req, res) => {
+  try {
+    const courses = await getAvailableCoursesForEnrollment(
+      req.user.student_id,
+      req.query.semestri
+    );
+
+    if (!courses) {
+      return res.status(404).json({ message: "Profili i studentit nuk u gjet." });
+    }
+
+    res.json(courses);
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate marrjes se lendeve per regjistrim.");
+  }
+};
+
+const getAvailableSemesters = async (req, res) => {
+  try {
+    const semesters = await getAvailableSemestersForEnrollment(req.user.student_id);
+
+    if (!semesters) {
+      return res.status(404).json({ message: "Profili i studentit nuk u gjet." });
+    }
+
+    res.json(semesters);
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate marrjes se semestrave.");
+  }
+};
+
+const registerCourse = async (req, res) => {
+  const requestedCourseIds = Array.isArray(req.body.lende_ids)
+    ? req.body.lende_ids
+    : [req.body.lende_id];
+  const courseIds = [
+    ...new Set(requestedCourseIds.map((courseId) => Number(courseId))),
+  ];
+
+  if (courseIds.length === 0 || courseIds.some((courseId) => !isPositiveInteger(courseId))) {
+    return sendValidationError(res, "Zgjidh te pakten nje lende valide.");
+  }
+
+  try {
+    const student = await getStudentForEnrollment(req.user.student_id);
+
+    if (!student) {
+      return res.status(404).json({ message: "Profili i studentit nuk u gjet." });
+    }
+
+    const currentSemester = getEnrollmentSemester(student, req.body.semestri);
+    const [courseRows] = await connection.query(
+      `
+        SELECT lende_id, semestri
+        FROM lendet l
+        WHERE l.lende_id IN (?)
+          AND l.drejtimi_id = ?
+          AND l.semestri = ?
+      `,
+      [courseIds, student.drejtimi_id, currentSemester]
+    );
+
+    if (courseRows.length !== courseIds.length) {
+      return res.status(403).json({
+        message: "Nje ose me shume lende nuk jane te disponueshme per drejtimin dhe semestrin tuaj aktual.",
+      });
+    }
+
+    const [existingRows] = await connection.query(
+      `
+        SELECT regjistrimi_id, lende_id
+        FROM regjistrimet
+        WHERE student_id = ? AND lende_id IN (?)
+      `,
+      [req.user.student_id, courseIds]
+    );
+
+    if (existingRows.length > 0) {
+      return res.status(409).json({
+        message: "Je i regjistruar tashme ne nje ose me shume nga keto lende.",
+      });
+    }
+
+    const academicYear = getCurrentAcademicYear();
+    const insertValues = courseRows.map((course) => [
+      req.user.student_id,
+      course.lende_id,
+      currentSemester,
+      academicYear,
+      "Aktiv",
+    ]);
+
+    const [result] = await connection.query(
+      `
+        INSERT INTO regjistrimet (student_id, lende_id, semestri, viti_akademik, statusi)
+        VALUES ?
+      `,
+      [insertValues]
+    );
+
+    res.status(201).json({
+      message:
+        courseRows.length === 1
+          ? "Lenda u regjistrua me sukses."
+          : "Lendet u regjistruan me sukses.",
+      id: result.insertId,
+      total: courseRows.length,
+    });
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate regjistrimit te lendes.");
+  }
+};
+
+const deleteEnrollment = async (req, res) => {
+  const { id } = req.params;
+
+  if (!isPositiveInteger(id)) {
+    return sendValidationError(res, "Regjistrimi duhet te zgjidhet sakte.");
+  }
+
+  try {
+    const [rows] = await connection.query(
+      `
+        SELECT regjistrimi_id, lende_id
+        FROM regjistrimet
+        WHERE regjistrimi_id = ? AND student_id = ?
+        LIMIT 1
+      `,
+      [id, req.user.student_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Regjistrimi nuk u gjet." });
+    }
+
+    const [usageRows] = await connection.query(
+      `
+        SELECT
+          (
+            SELECT COUNT(*)
+            FROM paraqitjet_provimeve pp
+            JOIN provimet p ON pp.provimi_id = p.provimi_id
+            WHERE pp.student_id = ?
+              AND p.lende_id = ?
+          ) AS total_paraqitjeve,
+          (
+            SELECT COUNT(*)
+            FROM notat n
+            JOIN provimet p ON n.provimi_id = p.provimi_id
+            WHERE n.student_id = ?
+              AND p.lende_id = ?
+          ) AS total_notave
+      `,
+      [
+        req.user.student_id,
+        rows[0].lende_id,
+        req.user.student_id,
+        rows[0].lende_id,
+      ]
+    );
+
+    if (
+      Number(usageRows[0]?.total_paraqitjeve || 0) > 0 ||
+      Number(usageRows[0]?.total_notave || 0) > 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Nuk mund te hiqet regjistrimi sepse ka paraqitje provimi ose note.",
+      });
+    }
+
+    await connection.query(
+      `
+        DELETE FROM regjistrimet
+        WHERE regjistrimi_id = ? AND student_id = ?
+      `,
+      [id, req.user.student_id]
+    );
+
+    res.json({ message: "Regjistrimi u hoq me sukses." });
+  } catch (err) {
+    return handleDbError(res, err, "Gabim gjate heqjes se regjistrimit.");
+  }
+};
+
 const getExams = async (req, res) => {
   try {
     const exams = await getStudentExams(req.user.student_id);
@@ -430,6 +768,12 @@ const applyForExam = async (req, res) => {
     if (Number(exam.is_past) === 1) {
       return res.status(400).json({
         message: "Nuk mund te paraqitet nje provim qe ka kaluar.",
+      });
+    }
+
+    if (Number(exam.total_course_grades) > 0) {
+      return res.status(400).json({
+        message: "Kjo lende eshte tashme e notuar dhe nuk mund te paraqitet perseri.",
       });
     }
 
@@ -558,6 +902,9 @@ const getProfileOverview = async (req, res) => {
 module.exports = {
   applyForExam,
   cancelExamApplication,
+  deleteEnrollment,
+  getAvailableCourses,
+  getAvailableSemesters,
   getEnrollments,
   getExamApplications,
   getExams,
@@ -566,4 +913,5 @@ module.exports = {
   getProfileOverview,
   getSchedule,
   getTranscript,
+  registerCourse,
 };

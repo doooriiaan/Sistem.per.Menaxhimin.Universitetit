@@ -339,9 +339,6 @@ const getCourseStudents = async (req, res) => {
     const [rows] = await connection.query(
       `
         SELECT
-          pp.paraqitje_id,
-          pp.statusi AS statusi_paraqitjes,
-          pp.paraqitur_at,
           s.student_id,
           s.emri,
           s.mbiemri,

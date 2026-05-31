@@ -45,7 +45,10 @@ function StudentExamsPage() {
   }, []);
 
   const availableExams = useMemo(
-    () => exams.filter((exam) => !exam.paraqitje_id && !exam.nota_id),
+    () =>
+      exams.filter(
+        (exam) => !exam.paraqitje_id && !exam.nota_id && !exam.course_nota_id
+      ),
     [exams]
   );
 
