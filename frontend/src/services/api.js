@@ -221,15 +221,6 @@ const requestSessionRefresh = async () => {
   return refreshPromise;
 };
 
-export const restoreSession = async () => {
-  try {
-    return await requestSessionRefresh();
-  } catch {
-    clearStoredAuth({ silent: true });
-    return null;
-  }
-};
-
 export const logoutSession = async () => {
   try {
     await sessionClient.post("/auth/logout");
