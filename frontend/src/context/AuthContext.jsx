@@ -6,7 +6,7 @@ import {
   getStoredAuth,
   setStoredAuth,
 } from "../utils/auth";
-import { logoutSession, restoreSession } from "../services/api";
+import { logoutSession } from "../services/api";
 import AuthContext from "./auth-context";
 
 export function AuthProvider({ children }) {
@@ -45,10 +45,8 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const restoredSession = await restoreSession();
-
       if (active) {
-        setAuthState(restoredSession);
+        setAuthState(null);
         setIsInitializing(false);
       }
     };
